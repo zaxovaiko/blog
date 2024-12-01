@@ -10,7 +10,7 @@ export const Hero = () => {
           alt="Blobs"
           width={200}
           height={200}
-          className="-z-10 absolute -top-20 right-0 select-none"
+          className="-z-10 absolute -top-20 right-0 select-none hidden sm:block"
         />
         Hey, I&apos;m Volod 👋
       </h3>

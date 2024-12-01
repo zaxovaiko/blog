@@ -7,6 +7,16 @@ export default {
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    container: {
+      screens: {
+        xs: "100%",
+        sm: "640px",
+        md: "768px",
+        lg: "800px",
+        xl: "800px",
+      },
+      center: true,
+    },
     extend: {
       colors: {
         background: "var(--background)",

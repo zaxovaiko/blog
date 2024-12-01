@@ -46,10 +46,10 @@ export default function RootLayout({
           </filter>
           <rect width="100%" height="100%" filter="url(#noise)"></rect>
         </svg>
-        <div className="px-4 sm:px-0 container w-100 sm:w[400px] md:w-[600px] mx-auto pt-0 sm:pt-10">
+        <header className="px-4 container pt-0 sm:pt-10">
           <Hero />
-        </div>
-        <main className="px-4">{children}</main>
+        </header>
+        <main className="px-4 container">{children}</main>
         <Analytics />
       </body>
     </html>

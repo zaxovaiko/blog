@@ -21,7 +21,7 @@ export default async function Post({
   });
   title = `zaxovaiko - ${post.title}`;
   return (
-    <section className="custom flex flex-col gap-4 container w-[600px] mx-auto py-10">
+    <section className="custom flex flex-col gap-4 py-10">
       <Head>
         <title>{post.title}</title>
       </Head>
