@@ -16,6 +16,8 @@ html {
 
 body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   color: var(--foreground);
   background: var(--background);
@@ -30,6 +32,7 @@ body {
 .custom h5 {
   margin-top: 1.25rem;
   margin-bottom: 1.25rem;
+  text-align: start;
 }
 
 .custom h2 {
@@ -51,4 +54,27 @@ code {
   padding: 0.125rem 0.25rem;
   background-color: #707070;
   color: #cacaca;
+}
+
+.custom .li {
+  margin-bottom: 0.5rem;
+}
+
+a {
+  color: theme("colors.purple.400");
+}
+
+a:hover {
+  color: theme("colors.purple.500");
+  transition: theme("transitionProperty.colors") theme("transitionDuration.150")
+    theme("transitionTimingFunction.in-out");
+}
+
+.current-company {
+  color: theme("colors.teal.400");
+  transition: theme("transitionProperty.colors") theme("transitionDuration.150")
+    theme("transitionTimingFunction.in-out");
+}
+.current-company:hover {
+  color: theme("colors.teal.500");
 }

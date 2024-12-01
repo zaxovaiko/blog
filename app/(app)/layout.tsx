@@ -49,7 +49,7 @@ export default function RootLayout({
         <header className="w-100 px-4 container pt-0 sm:pt-10">
           <Hero />
         </header>
-        <main className="px-4 container">{children}</main>
+        <main className="flex flex-1 px-4 container">{children}</main>
         <Analytics />
       </body>
     </html>

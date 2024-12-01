@@ -18,7 +18,7 @@ export const Hero = () => {
         a Senior Fullstack Developer at
         <a
           href="https://vazco.eu"
-          className="flex gap-1 items-center hover:text-zinc-200 transition-colors"
+          className="current-company flex gap-1 items-center"
         >
           <Image src="/vazco.svg" alt="Vazco" width={20} height={20} />
           Vazco

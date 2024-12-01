@@ -11,7 +11,7 @@ export const PostCard = ({ post }: { post: Post }) => {
     <div className="card bg-[rgba(70,70,70,0.4)] rounded-lg p-4 shadow-md gap-2 flex flex-col">
       <div className="flex justify-between items-start sm:items-center gap-1 flex-col sm:flex-row">
         <Link
-          href={`/posts/${post.id}`}
+          href={`/posts/${post.slug}`}
           className="text-zinc-300 hover:text-zinc-100 transition-colors"
         >
           <h3 className="text-lg">{post.title}</h3>
