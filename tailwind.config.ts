@@ -9,7 +9,6 @@ export default {
   theme: {
     container: {
       screens: {
-        xs: "100%",
         sm: "640px",
         md: "768px",
         lg: "800px",

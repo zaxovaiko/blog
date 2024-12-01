@@ -46,7 +46,7 @@ export default function RootLayout({
           </filter>
           <rect width="100%" height="100%" filter="url(#noise)"></rect>
         </svg>
-        <header className="px-4 container pt-0 sm:pt-10">
+        <header className="w-100 px-4 container pt-0 sm:pt-10">
           <Hero />
         </header>
         <main className="px-4 container">{children}</main>

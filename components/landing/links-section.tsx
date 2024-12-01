@@ -33,7 +33,7 @@ const links = [
 
 export const Links = () => {
   return (
-    <section className="flex gap-10">
+    <section className="flex gap-10 flex-wrap justify-center">
       {links.map((link) => (
         <Link
           href={link.href}

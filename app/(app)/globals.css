@@ -16,6 +16,7 @@ html {
 
 body {
   flex: 1;
+  width: 100%;
   color: var(--foreground);
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
