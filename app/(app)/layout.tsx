@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Work_Sans } from "next/font/google";
 import { Hero } from "@/components/landing";
+import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
   title: "zaxovaiko - home",
@@ -40,6 +41,7 @@ export default function RootLayout({
           <Hero />
         </div>
         <main className="px-4">{children}</main>
+        <Analytics />
       </body>
     </html>
   );
