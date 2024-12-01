@@ -21,6 +21,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <meta property="og:title" content="zaxovaiko's blog" />
+        <meta property="og:type" content="website" />
+        <meta
+          property="og:description"
+          content="Just my thoughts and observations 👋"
+        />
+        <meta property="og:image" content="/favicon.png" />
+      </head>
       <body className={worksans.className}>
         <svg
           className="z-50 pointer-events-none fixed isolate opacity-70 mix-blend-soft-light"
