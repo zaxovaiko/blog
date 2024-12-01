@@ -10,8 +10,15 @@ export function generateMetadata() {
   return { title };
 }
 
-export default async function Post({ params }: { params: { id: string } }) {
-  const post = await payload.findByID({ collection: "posts", id: params.id });
+export default async function Post({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const post = await payload.findByID({
+    collection: "posts",
+    id: (await params).id,
+  });
   title = `zaxovaiko - ${post.title}`;
   return (
     <section className="custom flex flex-col gap-4 container w-[600px] mx-auto py-10">
