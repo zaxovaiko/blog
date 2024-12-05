@@ -24,12 +24,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-.custom p,
-.custom h1,
-.custom h2,
-.custom h3,
-.custom h4,
-.custom h5 {
+.custom :where(h1, h2, h4, h5, h6) {
   margin-top: 1.25rem;
   margin-bottom: 1.25rem;
   text-align: start;
