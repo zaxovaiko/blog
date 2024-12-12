@@ -9,14 +9,14 @@ export const PostCard = ({ post }: { post: Post }) => {
 
   return (
     <div className="card bg-[rgba(70,70,70,0.4)] rounded-lg p-4 shadow-md gap-2 flex flex-col">
-      <div className="flex justify-between items-start sm:items-center gap-1 flex-col sm:flex-row">
+      <div className="flex justify-between items-start gap-4 flex-col sm:flex-row">
         <Link
           href={`/posts/${post.slug}`}
           className="text-zinc-300 hover:text-zinc-100 transition-colors"
         >
           <h3 className="text-lg">{post.title}</h3>
         </Link>
-        <p className="text-zinc-500 text-sm">
+        <p className="text-zinc-500 text-sm text-end min-w-24 leading-7">
           {dayjs(post.createdAt).format("MMM DD, YYYY")}
         </p>
       </div>

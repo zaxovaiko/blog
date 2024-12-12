@@ -1,8 +1,10 @@
 import { Bio, Links } from "@/components/landing";
 import { PostCard } from "@/components/posts/post-card";
 import { payload } from "@/lib/payload";
+import { headers } from "next/headers";
 
 export default async function Home() {
+  headers();
   const posts = await payload.find({ collection: "posts" });
 
   return (

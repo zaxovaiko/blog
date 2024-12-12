@@ -1,6 +1,7 @@
 import { BackButton } from "@/components/back-button";
 import { payload } from "@/lib/payload";
 import { RichText } from "@payloadcms/richtext-lexical/react";
+import { headers } from "next/headers";
 
 let title = "zaxovaiko - blog";
 
@@ -13,6 +14,7 @@ export default async function Post({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  headers();
   const { docs } = await payload.find({
     collection: "posts",
     where: { slug: { equals: (await params).slug } },
