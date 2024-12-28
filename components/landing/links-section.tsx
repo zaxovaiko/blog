@@ -5,6 +5,7 @@ import {
   IconUserCode,
 } from "@tabler/icons-react";
 import Link from "next/link";
+import { memo } from "react";
 
 const links = [
   {
@@ -31,7 +32,7 @@ const links = [
   },
 ];
 
-export const Links = () => {
+export const Links = memo(() => {
   return (
     <section className="flex gap-10 flex-wrap justify-center">
       {links.map((link) => (
@@ -51,4 +52,6 @@ export const Links = () => {
       ))}
     </section>
   );
-};
+});
+
+Links.displayName = "Links";

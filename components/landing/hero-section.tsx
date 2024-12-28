@@ -1,6 +1,7 @@
 import Image from "next/image";
+import { memo } from "react";
 
-export const Hero = () => {
+export const Hero = memo(() => {
   return (
     <section className="flex flex-col pt-20 relative">
       <h3 className="text-2xl font-bold relative">
@@ -26,4 +27,6 @@ export const Hero = () => {
       </p>
     </section>
   );
-};
+});
+
+Hero.displayName = "Hero";

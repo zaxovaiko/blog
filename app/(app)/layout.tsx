@@ -3,6 +3,7 @@ import "./globals.css";
 import { Work_Sans } from "next/font/google";
 import { Hero } from "@/components/landing";
 import { Analytics } from "@vercel/analytics/react";
+import { Snow } from "@/components/landing/snow";
 
 export const metadata: Metadata = {
   title: "zaxovaiko - home",
@@ -31,6 +32,7 @@ export default function RootLayout({
         <meta property="og:image" content="/favicon.png" />
       </head>
       <body className={worksans.className}>
+        <Snow />
         <svg
           className="z-50 pointer-events-none fixed isolate opacity-70 mix-blend-soft-light"
           width="100%"
