@@ -30,7 +30,7 @@ export const PostCard = ({ post }: { post: Post }) => {
         )}
       </div>
       {post.previewText && (
-        <RichText className="text-zinc-400" data={post.previewText} />
+        <RichText className="text-zinc-400 text-left" data={post.previewText} />
       )}
     </div>
   );

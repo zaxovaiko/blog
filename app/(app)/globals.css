@@ -32,7 +32,29 @@ body {
 
 .custom h2 {
   font-size: 2.5rem;
-  line-height: 3rem;
+  margin-bottom: 1.5rem;
+  font-weight: bold;
+  line-height: initial;
+}
+
+.custom hr {
+  border: #313131 1px solid;
+}
+
+.custom em {
+  opacity: 0.65;
+}
+
+.custom blockquote {
+  border-left: 0.25rem solid #313131;
+  padding-left: 1rem;
+  margin: 1rem 0;
+}
+
+.custom h3 {
+  font-size: 2rem;
+  margin-bottom: 1.25rem;
+  font-weight: bold;
 }
 
 .nestedListItem {
