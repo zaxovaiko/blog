@@ -23,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta property="og:title" content="zaxovaiko's blog" />
+        <meta property="og:title" content="Volod's blog" />
         <meta property="og:type" content="website" />
         <meta
           property="og:description"
