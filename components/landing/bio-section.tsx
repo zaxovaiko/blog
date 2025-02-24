@@ -1,6 +1,4 @@
-import { memo } from "react";
-
-export const Bio = memo(() => {
+export const Bio = () => {
   return (
     <section className="gap-4 flex flex-col">
       <h3 className="text-lg text-zinc-300">
@@ -14,6 +12,4 @@ export const Bio = memo(() => {
       </h3>
     </section>
   );
-});
-
-Bio.displayName = "Bio";
+};

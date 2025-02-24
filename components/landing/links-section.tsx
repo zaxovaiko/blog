@@ -2,6 +2,7 @@ import {
   IconBrandGithub,
   IconBrandLinkedin,
   IconFolders,
+  IconMail,
   IconUserCode,
 } from "@tabler/icons-react";
 import Link from "next/link";
@@ -29,6 +30,11 @@ const links = [
     href: "/",
     text: "Portfolio",
     soon: true,
+  },
+  {
+    icon: IconMail,
+    href: "mailto:contact@zaxovaiko.me",
+    text: "Contact me",
   },
 ];
 

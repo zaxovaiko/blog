@@ -1,20 +1,9 @@
 import Image from "next/image";
-import { memo } from "react";
 
-export const Hero = memo(() => {
+export const Hero = () => {
   return (
     <section className="flex flex-col pt-20 relative">
-      <h3 className="text-2xl font-bold relative">
-        <Image
-          draggable={false}
-          src="/pink.png"
-          alt="Blobs"
-          width={200}
-          height={200}
-          className="-z-10 absolute -top-20 right-0 select-none hidden sm:block"
-        />
-        Hey, I&apos;m Volod 👋
-      </h3>
+      <h3 className="text-2xl font-bold relative">Hey, I&apos;m Volod 👋</h3>
       <p className="text-zinc-500 text-lg flex gap-1 sm:gap-2 text-start flex-wrap">
         a Senior Fullstack Developer at
         <a
@@ -27,6 +16,4 @@ export const Hero = memo(() => {
       </p>
     </section>
   );
-});
-
-Hero.displayName = "Hero";
+};
