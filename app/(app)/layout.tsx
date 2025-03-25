@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Work_Sans } from "next/font/google";
+import { Space_Grotesk } from "next/font/google";
 import { Hero } from "@/components/landing";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "Just my thoughts and observations",
 };
 
-const worksans = Work_Sans({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
@@ -30,22 +30,8 @@ export default function RootLayout({
         />
         <meta property="og:image" content="/favicon.png" />
       </head>
-      <body className={worksans.className}>
-        <svg
-          className="z-50 pointer-events-none fixed isolate opacity-50 mix-blend-soft-light"
-          width="100%"
-          height="100%"
-        >
-          <filter id="noise">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.80"
-              numOctaves="4"
-              stitchTiles="stitch"
-            />
-          </filter>
-          <rect width="100%" height="100%" filter="url(#noise)"></rect>
-        </svg>
+      <body className={spaceGrotesk.className}>
+        <div className="noise -z-10" />
         <header className="w-100 px-4 container pt-0 sm:pt-10">
           <Hero />
         </header>

@@ -24,7 +24,7 @@ export default async function Post({
   if (!post) {
     title = `zaxovaiko - Not found`;
     return (
-      <section className="flex flex-row gap-4 items-center justify-center flex-1">
+      <section className="flex flex-row gap-4 items-center justify-center flex-1 w-full">
         <BackButton />
         <div>
           <h3>Article was not found</h3>
@@ -37,7 +37,7 @@ export default async function Post({
   }
   title = `zaxovaiko - ${post.title}`;
   return (
-    <section className="flex flex-col gap-4 py-10">
+    <section className="flex flex-col gap-4 py-10 w-full">
       <BackButton className="self-start" />
       <h1 className="text-5xl font-bold text-start">{post.title}</h1>
       <div className="custom">
