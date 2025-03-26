@@ -5,8 +5,8 @@ export const Bio = () => {
         I love to explore new things - tech, tools, new concepts. I always look
         for new ways to enhance my skills. Currently, I&apos;m engaged in the
         development of the{" "}
-        <a href="https://applover.space" className="text-purple-400">
-          Lover
+        <a href="https://geegeeapp.com" className="text-teal-400">
+          GeeGee
         </a>{" "}
         application and several other side projects.
       </h3>

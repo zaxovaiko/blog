@@ -50,7 +50,7 @@ export const Links = memo(() => {
           <link.icon size={26} stroke={2} />
           <span>{link.text}</span>
           {link.soon && (
-            <span className="ml-1 text-zinc-950 text-xs px-2 rounded-full bg-teal-300">
+            <span className="ml-1 text-zinc-950 text-xs px-2 rounded-full bg-accent">
               soon
             </span>
           )}

@@ -5,11 +5,13 @@
 :root {
   --background: #101010;
   --foreground: #ededed;
+  --accent: theme("colors.teal.400");
+  --accent-hover: theme("colors.teal.500");
 }
 
 ::selection {
-  color: theme("colors.zinc.900");
-  background: theme("colors.teal.300");
+  color: theme("colors.zinc.950");
+  background-color: #00ffe1ea;
 }
 
 html {
@@ -90,20 +92,20 @@ code {
 }
 
 a {
-  color: theme("colors.teal.400");
+  color: var(--accent);
 }
 
 a:hover {
-  color: theme("colors.teal.500");
+  color: var(--accent-hover);
   transition: theme("transitionProperty.colors") theme("transitionDuration.150")
     theme("transitionTimingFunction.in-out");
 }
 
 .current-company {
-  color: theme("colors.teal.400");
+  color: var(--accent);
   transition: theme("transitionProperty.colors") theme("transitionDuration.150")
     theme("transitionTimingFunction.in-out");
 }
 .current-company:hover {
-  color: theme("colors.teal.500");
+  color: var(--accent-hover);
 }

@@ -18,6 +18,8 @@ export default {
     },
     extend: {
       colors: {
+        accent: "var(--accent)",
+        "accent-hover": "var(--accent-hover)",
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
