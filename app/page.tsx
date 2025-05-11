@@ -4,7 +4,7 @@ import { Post, PostCard } from "@/components/posts/post-card";
 const posts: Post[] = [
   {
     slug: "rest-trpc-or-graphql",
-    createdAt: "2024-05-11",
+    createdAt: "2025-05-11",
     tags: ["REST API", "GraphQL", "tRPC"],
     title: `REST API, tRPC or GraphQL? What would you choose for your new startup?`,
     previewText:
