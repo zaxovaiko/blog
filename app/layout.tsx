@@ -4,8 +4,8 @@ import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "zaxovaiko - home",
-  description: "Just my thoughts and observations",
+  title: "zaxovaiko - Personal opinionated blog",
+  description: "Just my thoughts and views on various topics",
 };
 
 const spaceGrotesk = Space_Grotesk({
@@ -21,11 +21,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta property="og:title" content="Volod's blog" />
+        <meta
+          property="og:title"
+          content="zaxovaiko - Personal opinionated blog"
+        />
         <meta property="og:type" content="website" />
         <meta
           property="og:description"
-          content="Just my thoughts and observations 👋"
+          content="Just my thoughts and views on various topics"
         />
         <meta property="og:image" content="/favicon.png" />
       </head>

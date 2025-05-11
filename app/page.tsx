@@ -3,6 +3,14 @@ import { Post, PostCard } from "@/components/posts/post-card";
 
 const posts: Post[] = [
   {
+    slug: "rest-trpc-or-graphql",
+    createdAt: "2024-05-11",
+    tags: ["REST API", "GraphQL", "tRPC"],
+    title: `REST API, tRPC or GraphQL? What would you choose for your new startup?`,
+    previewText:
+      "Recently, I decided to bring one of my countless startup ideas to life, and I got stuck on choosing a communication protocol between the mobile app and the backend...",
+  },
+  {
     slug: "why-monorepo-changed-our-development-approach",
     createdAt: "2024-12-30",
     tags: ["Monorepo", "CI/CD", "GraphQL", "Codegen"],
