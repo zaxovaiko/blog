@@ -44,7 +44,7 @@ I won’t go over all pros and cons of these approaches — that wasn’t the po
 
 ## So, to summarize:
 
-- REST API — brrr. I'd only use it if I know for sure I’ll be writing the frontend in something other than TypeScript, or if I’ll be writing microservices in different languages. Otherwise, I’d avoid it.
+- REST API — brrr 🫠. I'm not saying it's obsolete, but it's not convenient for fully-typed monorepos. Yes, you have tons of tools for autogenerating types, even for setting up the entire REST API from PostgreSQL schemas and other cool stuff... But, I'd only use it if I know for sure I’ll be writing the frontend in something other than TypeScript, or if I’ll be writing microservices in different languages. Otherwise, I’d avoid it.
 - tRPC — seems fine, at least for small startups. If you don’t have a ready-made GraphQL backend setup to copy, I’d go with tRPC. Especially since GraphQL might be overkill for your tiny project that you’ll abandon in a few days. And if you’re not using a monorepo, consider either migrating to one or sticking with GraphQL/REST.
 - GraphQL — powerful. Never had real issues with it (aside from manually updating caches in `apollo-client` — it works, but type safety is awful). In theory, you could try using `react-query` + `graphql-request`, and also [codegen](https://the-guild.dev/graphql/codegen/plugins/typescript/typescript-react-query). I haven’t tried it yet, so maybe I’ll write a short review on that another time.
 
