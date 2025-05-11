@@ -6,39 +6,24 @@ import {
   IconUserCode,
 } from "@tabler/icons-react";
 import Link from "next/link";
-import { memo } from "react";
 
-const links = [
-  {
-    icon: IconBrandGithub,
-    href: "https://github.com/zaxovaiko",
-    text: "Github",
-  },
-  {
-    icon: IconBrandLinkedin,
-    href: "https://www.linkedin.com/in/zaxovaiko/",
-    text: "Linkedin",
-  },
-  {
-    icon: IconUserCode,
-    href: "/",
-    text: "About me",
-    soon: true,
-  },
-  {
-    icon: IconFolders,
-    href: "/",
-    text: "Portfolio",
-    soon: true,
-  },
-  {
-    icon: IconMail,
-    href: "mailto:contact@zaxovaiko.me",
-    text: "Contact me",
-  },
-];
+export const Links = () => {
+  const links = [
+    {
+      icon: IconBrandGithub,
+      href: "https://github.com/zaxovaiko",
+      text: "Github",
+    },
+    {
+      icon: IconBrandLinkedin,
+      href: "https://www.linkedin.com/in/zaxovaiko/",
+      text: "Linkedin",
+    },
+    { icon: IconUserCode, href: "/", text: "About me", soon: true },
+    { icon: IconFolders, href: "/", text: "Portfolio", soon: true },
+    { icon: IconMail, href: "mailto:contact@zaxovaiko.me", text: "Contact me" },
+  ];
 
-export const Links = memo(() => {
   return (
     <section className="flex gap-10 flex-wrap justify-center">
       {links.map((link) => (
@@ -58,6 +43,4 @@ export const Links = memo(() => {
       ))}
     </section>
   );
-});
-
-Links.displayName = "Links";
+};
