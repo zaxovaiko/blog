@@ -1,0 +1,57 @@
+# Should I migrate bare React Native project to Expo?
+
+The short answer is no. The long one - it depends.
+
+Hey. I’d like to share my experience migrating the bare React Native project to Expo.
+Our app is a platform for sports clubs and coaches. We are still looking for a niche, tho. The app itself has a lot of features even though they are pretty standard across different apps, such as recording videos, editing them, authorizing users (Google and Apple sign-ins and custom auth module written in native code Swift and Java for TikTok), background upload of videos, notifications, payments, real-time chats and some others. Also, the app contains 30+ screens of different complexity. So migrating the whole project to Expo might be quite a challenge here. Does that mean that we shouldn’t do that then? Not necessarily.
+
+I have experience with writing applications using both approaches, using Expo and not using it. To be honest, I love working with Expo. The documentation is great, the process of configuring the project is sweet, the CI/CD is excellent, and it doesn’t require too much initial work. It just works. On the other hand, we have a vanilla React Native project that started almost 4 years ago on the old 0.65 version. The app changed a lot since then. We tried different features, gathered feedback from end users, rethought the entire app idea several times, and eventually found the gold (I hope). All that meant that we had to develop new features rapidly and constantly deal with the tech debt because there was no time to improve the Developer Experience. Talking about the last, before we even had our CI&CD with automatic building and distribution configured, we needed to release every new version of the app manually. As you can imagine, sometimes it causes a lot of trouble, for example, when a developer responsible for releasing the product was out of the office and nobody could substitute him. Deadlines were not followed, the client was upset, the galaxy started collapsing…
+
+## Problems we have/had
+
+- Updating to the latest React Native versions is usually painful. There are tools like [Upgrade Helper](https://react-native-community.github.io/upgrade-helper/) but they don’t always solve the problem. Almost with every new version since 0.71, I’ve had to search for some workarounds for my M3 mac to build the app. Currently we are running on version 0.72 of React Native and bumping it straight to 0.76 might be a terrific problem.
+- Routing. We’re using `@react-navigation/native` (the same library that Expo uses for its routing), but we have some unresolved bugs on Android that completely break User Experience.
+  - IMO, file-system-based routing can help us structure our codebase way better than we have it now. We don’t have any convention; we just put our files with screen components wherever we want. Later, finding any specific screen takes more time than creating it from scratch.
+- A lot of NPM packages we use are outdated and not maintained. For example, `@datapad/react-native-camera` package was updated 2 years ago. It’s literally dead.
+  - Let’s say you want to contribute to a package, but you don’t want to wait for your pull request to be merged and a new version to be published. Sure, you could fork the package and push your fixes directly to the master branch, but let’s be honest—that’s not exactly a practical long-term solution. Managing this process for multiple libraries would quickly become exhausting and unmanageable. That’s why using popular and maintainable libraries is a key point here.
+- CI&CD. Now, we’re using fastline to build the app automatically. But previously we haven’t had enough time for configuring it. I think most of bare projects are already configured for automatic delivery but still, it can be done a lot easier with Expo rather than spending a few hundred dollars for developer-hours.
+- OTA updates. It’s a super useful feature. It could save us billion times if we just had it. Unfortunately, to enable it with bare RN project, we need to deal with react-native-code-push which was a part of App Center that will be killed in early 2025. Also, it doesn’t support New Architecture. Fuck it.
+  - Another option is Expo EAS Updates. In short, it’s the best developer experience I’ve ever had, hands down.
+- And many many other problems…
+
+## So, what could we do with those problems?
+At the beginning of this article, I asked “Should I migrate bare React Native project to Expo? The short answer is no. The long one - it depends.”. Now it’s time to explain.
+
+Obviously, we can keep working on the project as we do now and try to resolve those problems somehow, but I don’t see that as our future. There is more sense in creating a new Expo project and moving everything there from the old one. Of course, you won’t do that in one day or even one week. It requires a lot of planning, researching, thinking, and coding, but that is worth it.
+Moving to Expo gives us a huge improvement for DX. The Expo has evolved a lot. I remember how I tried it for the first time 5 years ago. It was raw and seemed to be rather a proof of concept than actually a working library. But now… authors overdone themselves. It’s a whole new world with a large community and features. Working with the Expo is a big pleasure.
+Back to the point.
+
+In our case, moving the entire app to a new expo project is relatively realistic and shouldn’t be a big problem since we have only around 30 screens in the app. But for larger applications, my only recommendation would be to try to find screens that are not used or at least that can be shipped later within new releases. Unfortunately, such migration can’t be done partially or iteratively. We don’t want to block the app development for a month or more. We want to migrate as quickly as possible with less loss.
+
+If your app is huge and you don’t have time for that, good luck, boy. If you see that moving to the Expo can help your team to iterate faster, try convincing the client to invest money into this migration. Otherwise, you won’t do anything with that. But again, it depends on the project's complexity, the client’s budget, your needs, your mood, how far Venus is from Earth, etc…
+Besides simple screen components, we have some Native modules (for TikTok authorization). There shouldn’t be a problem since it’s just a single module, and Expo [now supports](https://docs.expo.dev/modules/native-module-tutorial/) Native modules.
+
+The biggest issue might be with configuring keystores and certificates for Android and iOS accordingly. In theory, we just need to import them directly into the Expo console, and that’s it. But who knows how it can turn out in reality.
+Of course we can [install expo packages into our bare React Native project](https://docs.expo.dev/bare/installing-expo-modules/). But I think configuring it will cause more confusion rather than bring more value. Hence, clean install of the project makes more sense here.
+
+# Summary
+
+So, here I would like to summarize everything from my point of view based on my experience and the project situation.
+
+## Pros of moving to Expo:
+
+- OTA updates
+- Easy updates of React Native versions
+- Maintainable packages such as `expo-camera`, `expo-device`, and many others, alongside the opportunity to upgrade outdated packages during migration.
+- Automatic builds and delivery
+- File-system-based routing
+- Easy configuration of the project
+
+## Cons or reasons why you shouldn’t migrate to Expo:
+
+- It may cost a lot for your client
+- You don’t always have that much time to adjust the codebase and do the migration.
+- You already have the latest React Native version in your vanilla project
+- You have already configured CI&CD (means automatic building and deployment processes)
+
+Since our app is of average size, I’d give it a try - partly out of curiosity to see what problems we might face. Don’t treat this article as a definitive reason to move to Expo. I’m just sharing difficulties we’ve faced during the development and my initial thoughts. Keep in mind that your case is individual, and you should think twice before starting to do something.

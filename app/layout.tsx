@@ -1,8 +1,7 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { Space_Grotesk } from "next/font/google";
-import { Hero } from "@/components/landing";
 import { Analytics } from "@vercel/analytics/react";
+import type { Metadata } from "next";
+import { Space_Grotesk } from "next/font/google";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "zaxovaiko - home",
@@ -32,9 +31,6 @@ export default function RootLayout({
       </head>
       <body className={spaceGrotesk.className}>
         <div className="noise -z-10" />
-        <header className="w-100 px-4 container pt-0 sm:pt-10">
-          <Hero />
-        </header>
         <main className="flex flex-1 px-4 container">{children}</main>
         <Analytics />
       </body>

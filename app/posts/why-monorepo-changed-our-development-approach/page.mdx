@@ -1,0 +1,122 @@
+# Pre story
+
+Every project begins with a simple idea and limited resources. Our startup was no exception. We are a team of 3 developers creating a mobile app for rugby clubs. Initially, we worked on the backend and mobile application in two separate repositories, connecting them with REST API. However, over time, it became clear that we needed to optimize the app.
+
+Switching to GraphQL promised to solve many issues with data exchange between the backend and mobile app. To achieve this, we rewrote our backend from Java to Node.js (it doesn’t matter in this article's context), adapted the mobile app to the new API, and kept the two repositories separate.
+
+# Pull Requests
+
+This worked fine at first, but working with two repositories started creating unnecessary complications over time. Managing two separate PRs for every new feature became a real pain as we added more features. It seemed trivial at first, but after doing it a hundred times, it started annoying us. Sometimes, the backend PR would merge before the front end or vice versa, and we’d have mismatched features and inconsistent functionality. This confused team members, delayed testing, and even caused bugs in production. It was clear we needed to change our workflow.
+
+# GraphQL codegen
+
+Another issue was the process of generating GraphQL types (we use `@graphql-codegen/cli`). The mobile app required an up-to-date backend schema for introspection, forcing us to deploy the backend before building the mobile bundle. This added at least 10–15 minutes to each release.
+
+We realized something needed to be changed. Fortunately, the backend was already partially set up for a monorepo using Nx, but without active caching or configured tasks. Instead of using Nx on full power, we ran commands directly from the workspace package `npm run start -w backend`. However, Nx felt overly complex for our needs, so we switched to a relatively new tool called [Turborepo](https://turbo.build/repo/docs). It looked like we can make the process simpler and more efficient.
+
+> Turborepo is a high-performance build system for JS and TS codebases. It is designed for scaling monorepos and also makes workflows in [single-package workspaces](https://turbo.build/repo/docs/guides/single-package-workspaces) faster, too.
+
+The decision was made: merge the backend and mobile app into a monorepo. This transition was challenging but opened up many new opportunities, which I will share later.
+
+# Migration process
+
+The process was far from straightforward. My first attempt was directly merging the backend repository into the mobile app repository. At first glance, it seemed like a reasonable approach, but it quickly became evident that this method introduced more problems than solved.
+
+## Initial problems
+
+- **Workflow breakdowns:** Merging the repositories caused GitHub Actions workflows to fail. Backend workflows were designed for a standalone repository and didn’t reflect the new monorepo structure.
+
+- **Dependency issues:** Package versions across the backend and mobile app sometimes didn’t match, leading to building failures, like `graphql`, `jest`, etc. I was obligated to bump packages to the latest version to fix the issue. In our case, it was pretty straightforward.
+
+  However, it can be a problem for other projects because you don’t always have enough time to update the packages (update packages, adjust the codebase accordingly to API changes, and test the project). There can be a problem, especially when you try to migrate three or more projects into a monorepo. You simply don’t always have enough time for that.
+
+  You can avoid those problems by disabling the hoisting of the packages from nested `node_modules`. Yarn and pnpm package managers allow you to do that, but not npm [yet](https://github.com/npm/rfcs/issues/287) (even though workspaces support was introduced since version 7).
+
+- **Unconfigured paths:** Dependencies and relative paths in project files needed significant adjustments to align with the new directory structure in the monorepo.
+
+After facing these issues, I realized that migrating everything at once was overly ambitious. I decided to start fresh and take a step-by-step approach:
+
+- **Environment variables:** I began collecting all environment variables used in the backend workflows in order to add them to the mobile repo.
+
+  To be honest, it’s quite annoying that we can’t see secrets configured on Github. Instead, we need to visit each service we use and copy secrets manually.
+
+- **Separate Turborepo setups:** I installed and configured Turborepo independently in both repositories to simplify the eventual migration. This allowed me to configure tasks with proper caching like linting, code generation, and GraphQL codegen while still working within separate repos
+
+- **Incremental merging:** With Turborepo set up, I moved the backend project files into the `apps` directory of the mobile app repository. This step-by-step process minimized disruptions and allowed me to test changes iteratively.
+
+Also, remember to preserve the commit history while merging repositories. If it’s your side project, don’t worry too much about it. But if you’re working with a team, keeping a history of file changes is crucial _(because everyone will blame you for writing bad code even though it’s not yours!)_. [Here](https://stackoverflow.com/questions/1425892/how-do-you-merge-two-git-repositories/10548919#10548919) is an excellent explanation of how to merge them properly.
+
+Once the repositories were combined, I archived the old backend repository and updated all workflows to align with the monorepo structure.
+
+# GraphQL introspection improvement
+
+One of the most notable improvements was the ability to perform GraphQL introspection locally using a schema file instead of deploying the backend.
+
+Our previous process was this: after changing the GraphQL schema, we deployed a new version of the backend (deployment lasts for ~15 minutes), then we manually triggered the build app bundle workflow that introspected the backend GraphQL schema and then did the rest of the job. There was no way to do it faster because the schema file was in the other repository.
+
+That’s why migration to monorepo eliminated the 10–15 minutes previously spent deploying the backend before building the mobile app. It also allowed us to decouple app releases from backend deployments, significantly improving our efficiency.
+
+Now, we have configured codegen as a root Turborepo task, and we can easily share the GraphQL schema between the backend and mobile packages.
+
+# Here are some key benefits we gained after migration
+
+- **Simplified repo management:** Instead of constantly working with two separate repositories, everything is now in one place. This dramatically streamlines development, integration, and deployment processes.
+
+- **Improved caching:** Turborepo enables caching for tasks like linting, type generation, testing, which speeds up development processes. It helps avoid redundant work and reduces the time required for repetitive tasks.
+
+- **Automation and reduced human error:** Previously, building the mobile app required manually deploying the backend, causing delays. With local introspection of the GraphQL schema, we can build the app without deploying the backend, significantly reducing errors and saving time.
+
+- **Flexibility in infrastructure management:** All configurations and infrastructure are now part of a single repository, simplifying the management of environments and secrets and enabling quicker setup of workflows.
+
+- **Code sharing between packages:** It’s not relevant in our case, but monorepos make it easy to share reusable code parts between different packages. It can reduce the duplication and simplify maintenance.
+
+# Potential drawbacks
+
+## Github Actions cache limit
+
+Github [has a limit of 10GB](https://www.zaxovaiko.me/posts/why-monorepo-changed-our-development-approach#:~:text=Github-,has%20a%20limit%20of%2010GB,-for%20cache%20entries) for cache entries by default for every repository. We use ~8GB because of caching `node_modules`, `cocoapods`, and `maven` packages for optimizing mobile build workflow. You can easily reach this limit with more packages in the monorepo. After reaching it, you will have a few options: skip the caching step and cache only the most essential things, or I don’t know even, good luck.
+
+## Clone time and local dependencies size
+
+- Cloning a monorepo can take more time than a single dedicated repository.
+
+- You must install all dependencies even though you are working on one part of the app. If you are running low on storage, it might be an issue. On the other hand, it has nothing to do with production. You will include only the needed code in your Docker container or app bundle, skipping blocks that are not used. So, the bundle size will still be the same.
+
+# Summary
+
+## Pros
+
+- Better developer experience. Everything in one place.
+- Sharing repeatable code
+- Automations that reduces human error
+- Simplified infrastructure management
+
+## Cons
+
+- Clone time and larger amount of dependencies to install
+- Possible issues with packages versions mismatch
+- You can possibly reach cache size limit on Github Actions
+- It requires some time to migrate that you not always have
+
+Ultimately, your comfort and workflow preferences should guide your decision. What matters is how comfortable you feel developing a product. Please, don’t overcomplicate things for yourself. If you want to try new approaches, go ahead. The worst thing that can happen is that you will gain new experience and knowledge.
+
+But for pedants (detail-oriented individuals) or teams with big projects, I’d recommend thinking twice before making the migration. It depends on your specific needs. There are not so many technical reasons to do this, but it can still improve your overall DX.
+
+-------------
+
+# Additionally
+
+Remember to configure caching correctly for your workflows and make sure your workflows are OS-agnostic. In my case, I forgot to specify the key for `actions/cache@v4` based on the machine’s OS, and we had a problem with building the mobile app for iOS and Android. Sometimes, it worked for iOS but not for Android, and sometimes vice-versa. During the workflow, npm installed packages for Linux (x86_64 arch) and cached them, and it triggered an error during iOS builds.
+
+Debugging it was a nightmare since I had to wait half an hour for each platform to be built each time to check if the issue was resolved.
+
+```yaml
+- name: Cache node_modules
+  uses: actions/cache@v4
+  id: cache-npm
+  with:
+    path: |
+      ./node_modules
+      ./apps/mobile/node_modules
+      ./apps/backend/node_modules
+    key: ${{ runner.os }}-npm-${{ hashFiles('package-lock.json') }}

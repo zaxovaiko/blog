@@ -1,0 +1,61 @@
+# How to bankrupt your client or why you should avoid using `on push` events on Github Actions
+
+Long story short, I almost bankrupted a client by just adding `--all` to the `git push` command. Already got what happened? I’m happy you figured it out. Otherwise, welcome to my short story about how to avoid such a mistake.
+
+First of all, it happened on a project I had been working on for a long time. That means I had a chance to implement an enormous amount of features and do a lot of other minor fixes. Like a normal dev, I did everything on separate branches to manage changes properly and to avoid chaos.
+
+Another thing is our CI/CD, which is based on Github Actions. It runs nothing special: tests, linting, type checks, and cache verifications and, attention, is triggered on every push to the branch. What could go wrong, right? Everything was running smoothly and just fine until, for some reason, I decided to run `git push --all` without a second thought…
+
+It pushed nearly 500 branches at once, which I’ve collected for all these years. Of course, I didn’t think it would trigger Actions for every last commit on every branch. Thankfully, each CI workflow runs somewhere around 2 minutes, so in total, it would take 1000 minutes (~17h) to execute all triggered workflows.
+
+> It would take even more time, though, since standard GitHub-hosted runners can run concurrently only 40 jobs (on the Pro tier).
+
+You can think, “wtf is he talking about”. Yes, I click-baited you a bit 🤓, and yes, there are 2000 CI/CD minutes available for Pro accounts for private repositories. However, the problem is that we already used a lot of free minutes due to active development. We use CI/CD for building and distributing the app for iOS and Android, and each build can take up to 40-45mins + backend deployments. In general, it’s not that bad. Even if you trigger 24 \* 30 days = 720 workflows that run for 3 minutes, it’ll cost you only 18$ (calculated on [Github pricing calculator](https://github.com/pricing/calculator)). Phew. But…
+
+
+# What to do to prevent actions spamming?
+
+If you already triggered unwanted actions, don’t hesitate to cancel them using CLI. I’m sure you won’t be happy clicking a few hundred times on the “Cancel workflow” button.
+
+If you are on Unix, you can run:
+
+```bash
+for id in $(gh run list --limit 300 --status queued --jq ".[] | .databaseId" --json databaseId); do gh run delete $id; done
+```
+
+- `--status queued` - filters for queued actions only
+- `--jq ".[] | .databaseId` - extracts the `databaseId` field from the JSON output. [Here is the manual](https://stedolan.github.io/jq/manual/), if you don’t believe me
+- `--json databaseId` - ask the CLI to return only `databaseId`
+- `gh run delete $id` - for each id returned, remove the workflow
+
+Secondly, instead of running CI on every push:
+
+```yaml
+on:
+  push
+```
+
+think about triggering it only on PRs or specific branches:
+
+```yaml
+on:
+  pull_request
+```
+
+> When using the `pull_request` and `pull_request_target` events, you can configure a workflow to run only for pull requests that target specific branches.
+
+# Github limitations
+
+Additionally, Github has some limitations on its own (from docs) to prevent abuse usage:
+
+- **Workflow run queue** - No more than 500 workflow runs can be queued in a 10 second interval per repository. If a workflow run reaches this limit, the workflow run is terminated and fails to complete.
+- **API requests** - You can execute up to 1,000 requests to the GitHub API in an hour across all actions within a repository.
+- **Webhook rate limit** - Each repository is limited to 1500 triggered events every 10 seconds.
+
+This change can make you and your wallet feel a lot safer. Don’t underestimate the power of trigger events, and take care!
+
+# Key points
+
+- This story is a friendly reminder that you need to be aware that something similar can occur to you, and in your case, it can be even more than 18$.
+- Always remember to prevent overuse of pay-as-you-go services.
+- Replace `push` with `pull_request` event or specify the exact branches for push events.
