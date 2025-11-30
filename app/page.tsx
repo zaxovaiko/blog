@@ -1,5 +1,6 @@
 import { Bio, Hero, Links } from "@/components/landing";
 import { Post, PostCard } from "@/components/posts/post-card";
+import { createMetadata } from "@/lib/seo";
 
 const posts: Post[] = [
   {
@@ -48,3 +49,10 @@ export default async function Home() {
     </div>
   );
 }
+
+export const metadata = createMetadata({
+  title: "Home",
+  description:
+    "Personal blog of zaxovaiko — opinions and notes about TypeScript, mobile development, and AI.",
+  pathname: "/",
+});

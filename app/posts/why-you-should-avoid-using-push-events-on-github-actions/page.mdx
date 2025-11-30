@@ -1,3 +1,12 @@
+export const metadata = {
+  title:
+    "How to bankrupt your client or why you should avoid using `on push` events on Github Actions",
+  description:
+    "A cautionary story about using push triggers for GitHub Actions and how it can spam CI/minutes — safer alternatives explained.",
+  openGraph: { type: "article", images: "/vazco.svg" },
+  twitter: { card: "summary_large_image" },
+};
+
 # How to bankrupt your client or why you should avoid using `on push` events on Github Actions
 
 Long story short, I almost bankrupted a client by just adding `--all` to the `git push` command. Already got what happened? I’m happy you figured it out. Otherwise, welcome to my short story about how to avoid such a mistake.

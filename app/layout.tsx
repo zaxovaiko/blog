@@ -1,12 +1,10 @@
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
+import { defaultMetadata } from "@/lib/seo";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "zaxovaiko - Personal opinionated blog",
-  description: "Just my thoughts and views on various topics",
-};
+export const metadata: Metadata = defaultMetadata;
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -20,18 +18,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <meta
-          property="og:title"
-          content="zaxovaiko - Personal opinionated blog"
-        />
-        <meta property="og:type" content="website" />
-        <meta
-          property="og:description"
-          content="Just my thoughts and views on various topics"
-        />
-        <meta property="og:image" content="/favicon.png" />
-      </head>
+      {/* Next handles metadata tags automatically via `export const metadata` */}
       <body className={spaceGrotesk.className}>
         <div className="noise -z-10" />
         <main className="flex flex-1 px-4 container">{children}</main>
