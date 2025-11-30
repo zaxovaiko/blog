@@ -8,6 +8,40 @@ import {
   IconMessageChatbot,
   IconRobot,
   IconServer,
+  IconBrandPrisma,
+  IconDatabase,
+  IconBrandMongodb,
+  IconBrandAws,
+  IconBrandGoogle,
+  IconTrain,
+  IconBrandVercel,
+  IconCloud,
+  IconBrandDocker,
+  IconBrandPython,
+  IconBrandNodejs,
+  IconBrandTailwind,
+  IconBrandSass,
+  IconBrandDeno,
+  IconBrandBunpo,
+  IconBrandUbuntu,
+  IconGitBranch,
+  IconTestPipe,
+  IconBrandJavascript,
+  IconCpu,
+  IconCircleLetterR,
+  IconBrandPhp,
+  IconBrandCpp,
+  IconBrandRust,
+  IconBrandSupabase,
+  IconBrandFirebase,
+  IconBrandStripe,
+  IconCloudUpload,
+  IconBrandSentry,
+  IconBrandMixpanel,
+  IconBrandGooglePlay,
+  IconBrandApple,
+  IconChartBar,
+  IconCurrencyDollar,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { SkillCard } from "./skill-card";
@@ -21,12 +55,88 @@ export const metadata = {
 export default function AboutPage() {
   const skillCategories = [
     {
-      title: "TypeScript Ecosystem",
-      description: "Building robust and scalable applications",
+      title: "Languages & Runtimes",
+      description: "Core languages and modern JS runtimes",
       skills: [
         { icon: IconBrandTypescript, name: "TypeScript" },
+        { icon: IconBrandPython, name: "Python" },
+        { icon: IconBrandDeno, name: "Deno" },
+        { icon: IconBrandBunpo, name: "Bun" },
+      ],
+    },
+    {
+      title: "Frameworks & Styling",
+      description: "Servers, frameworks and UI tooling",
+      skills: [
         { icon: IconCode, name: "React & Next.js" },
-        { icon: IconServer, name: "Node.js" },
+        { icon: IconBrandJavascript, name: "RxJS" },
+        { icon: IconBrandNodejs, name: "Nest.js" },
+        { icon: IconBrandTailwind, name: "Tailwind" },
+        { icon: IconBrandSass, name: "SCSS" },
+      ],
+    },
+    {
+      title: "Databases & ORMs",
+      description: "Data stores and modern ORMs",
+      skills: [
+        { icon: IconDatabase, name: "Postgres / SQL" },
+        { icon: IconBrandMongodb, name: "MongoDB" },
+        { icon: IconBrandPrisma, name: "Prisma / Drizzle / Other ORMs" },
+      ],
+    },
+    {
+      title: "Cloud & Hosting",
+      description: "Platforms and cloud providers",
+      skills: [
+        { icon: IconBrandAws, name: "AWS" },
+        { icon: IconBrandGoogle, name: "GCP" },
+        { icon: IconBrandVercel, name: "Vercel" },
+        { icon: IconTrain, name: "Railway" },
+        { icon: IconCloud, name: "DigitalOcean" },
+        { icon: IconCloud, name: "Sevalla" },
+        { icon: IconCloud, name: "Heroku" },
+      ],
+    },
+    {
+      title: "DevOps & Infrastructure",
+      description: "Containers, orchestration and OS",
+      skills: [
+        { icon: IconBrandDocker, name: "Docker" },
+        { icon: IconBrandUbuntu, name: "Linux" },
+      ],
+    },
+    {
+      title: "Platforms & Services",
+      description: "Auth, storage, analytics & payments",
+      skills: [
+        {
+          icon: IconBrandFirebase,
+          name: "Firebase",
+        },
+        { icon: IconBrandSupabase, name: "Supabase" },
+        { icon: IconCloudUpload, name: "Cloudinary" },
+        { icon: IconBrandSentry, name: "Sentry" },
+        { icon: IconBrandStripe, name: "Stripe" },
+        { icon: IconCurrencyDollar, name: "RevenueCat" },
+        { icon: IconChartBar, name: "PostHog" },
+        { icon: IconBrandMixpanel, name: "Mixpanel" },
+      ],
+    },
+    {
+      title: "Distribution & Stores",
+      description: "Where I publish mobile apps",
+      skills: [
+        { icon: IconBrandApple, name: "Apple App Store" },
+        { icon: IconBrandGooglePlay, name: "Google Play Store" },
+      ],
+    },
+    {
+      title: "Testing & CI",
+      description: "Testing tools, E2E frameworks, and CI/CD workflows",
+      skills: [
+        { icon: IconTestPipe, name: "Jest" },
+        { icon: IconDeviceMobile, name: "Detox" },
+        { icon: IconGitBranch, name: "CI / CD" },
       ],
     },
     {
@@ -44,6 +154,20 @@ export default function AboutPage() {
       skills: [
         { icon: IconBrandReactNative, name: "React Native" },
         { icon: IconDeviceMobile, name: "Expo" },
+      ],
+    },
+    {
+      title: "Tried / Previously used",
+      description:
+        "Technologies I learned and worked with before (not used professionally today)",
+      skills: [
+        { icon: IconBrandPhp, name: "PHP (Laravel)" },
+        { icon: IconServer, name: "Java (Spring Boot)" },
+        { icon: IconBrandCpp, name: "C++" },
+        { icon: IconBrandRust, name: "Rust" },
+        { icon: IconCircleLetterR, name: "R" },
+        { icon: IconCode, name: "Pascal" },
+        { icon: IconCpu, name: "Assembler" },
       ],
     },
   ];
@@ -92,6 +216,13 @@ export default function AboutPage() {
             </div>
           ))}
         </div>
+      </section>
+      <section className="mt-8 sm:mt-10">
+        <p className="text-zinc-400 text-sm sm:text-base mt-8 text-center">
+          However, the specific library or tool is secondary - what truly
+          matters is the ability to use the right tool effectively to solve the
+          problem.
+        </p>
       </section>
     </div>
   );
