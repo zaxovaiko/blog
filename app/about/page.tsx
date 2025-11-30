@@ -24,58 +24,26 @@ export default function AboutPage() {
       title: "TypeScript Ecosystem",
       description: "Building robust and scalable applications",
       skills: [
-        {
-          icon: IconBrandTypescript,
-          name: "TypeScript",
-          description: "Type-safe development with advanced patterns",
-        },
-        {
-          icon: IconCode,
-          name: "React & Next.js",
-          description: "Modern web applications with SSR/SSG",
-        },
-        {
-          icon: IconServer,
-          name: "Node.js",
-          description: "Backend services and APIs",
-        },
+        { icon: IconBrandTypescript, name: "TypeScript" },
+        { icon: IconCode, name: "React & Next.js" },
+        { icon: IconServer, name: "Node.js" },
       ],
     },
     {
       title: "AI & Machine Learning",
       description: "Building intelligent solutions",
       skills: [
-        {
-          icon: IconRobot,
-          name: "LLM Integration",
-          description: "Working with large language models",
-        },
-        {
-          icon: IconBrain,
-          name: "RAG Systems",
-          description: "Retrieval-augmented generation pipelines",
-        },
-        {
-          icon: IconMessageChatbot,
-          name: "MCP",
-          description: "Model Context Protocol implementations",
-        },
+        { icon: IconRobot, name: "LLM Integration" },
+        { icon: IconBrain, name: "RAG Systems" },
+        { icon: IconMessageChatbot, name: "MCP" },
       ],
     },
     {
       title: "Mobile Development",
       description: "Cross-platform mobile applications",
       skills: [
-        {
-          icon: IconBrandReactNative,
-          name: "React Native",
-          description: "Cross-platform mobile development",
-        },
-        {
-          icon: IconDeviceMobile,
-          name: "Expo",
-          description: "Rapid mobile app development",
-        },
+        { icon: IconBrandReactNative, name: "React Native" },
+        { icon: IconDeviceMobile, name: "Expo" },
       ],
     },
   ];
@@ -118,7 +86,6 @@ export default function AboutPage() {
                     key={skill.name}
                     icon={skill.icon}
                     name={skill.name}
-                    description={skill.description}
                   />
                 ))}
               </div>
