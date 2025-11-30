@@ -1,0 +1,127 @@
+import { Button } from "@/components/ui/button";
+import {
+  IconBrain,
+  IconBrandReactNative,
+  IconBrandTypescript,
+  IconCode,
+  IconDeviceMobile,
+  IconMessageChatbot,
+  IconRobot,
+  IconServer,
+} from "@tabler/icons-react";
+import Link from "next/link";
+import { SkillCard } from "./skill-card";
+
+export const metadata = {
+  title: "About Me | zaxovaiko",
+  description:
+    "Learn about my skills and expertise in TypeScript, AI, and mobile development",
+};
+
+export default function AboutPage() {
+  const skillCategories = [
+    {
+      title: "TypeScript Ecosystem",
+      description: "Building robust and scalable applications",
+      skills: [
+        {
+          icon: IconBrandTypescript,
+          name: "TypeScript",
+          description: "Type-safe development with advanced patterns",
+        },
+        {
+          icon: IconCode,
+          name: "React & Next.js",
+          description: "Modern web applications with SSR/SSG",
+        },
+        {
+          icon: IconServer,
+          name: "Node.js",
+          description: "Backend services and APIs",
+        },
+      ],
+    },
+    {
+      title: "AI & Machine Learning",
+      description: "Building intelligent solutions",
+      skills: [
+        {
+          icon: IconRobot,
+          name: "LLM Integration",
+          description: "Working with large language models",
+        },
+        {
+          icon: IconBrain,
+          name: "RAG Systems",
+          description: "Retrieval-augmented generation pipelines",
+        },
+        {
+          icon: IconMessageChatbot,
+          name: "MCP",
+          description: "Model Context Protocol implementations",
+        },
+      ],
+    },
+    {
+      title: "Mobile Development",
+      description: "Cross-platform mobile applications",
+      skills: [
+        {
+          icon: IconBrandReactNative,
+          name: "React Native",
+          description: "Cross-platform mobile development",
+        },
+        {
+          icon: IconDeviceMobile,
+          name: "Expo",
+          description: "Rapid mobile app development",
+        },
+      ],
+    },
+  ];
+
+  return (
+    <div className="flex flex-col py-10">
+      <Link href="/" className="self-center">
+        <Button variant="outline" className="hover:bg-white">
+          <span className="text-sm">Back to home</span>
+        </Button>
+      </Link>
+
+      <section className="flex flex-col pt-10">
+        <h1 className="text-3xl font-bold">About Me</h1>
+        <p className="text-zinc-400 text-lg mt-4">
+          I&apos;m a Senior Fullstack Developer passionate about building
+          exceptional digital experiences. I specialize in the TypeScript
+          ecosystem, AI technologies, and mobile development.
+        </p>
+      </section>
+
+      <section className="mt-10">
+        <h2 className="text-2xl font-bold mb-6">My Skills</h2>
+        <div className="flex flex-col gap-8">
+          {skillCategories.map((category) => (
+            <div key={category.title} className="flex flex-col gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-teal-400">
+                  {category.title}
+                </h3>
+                <p className="text-zinc-500 text-sm">{category.description}</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {category.skills.map((skill) => (
+                  <SkillCard
+                    key={skill.name}
+                    icon={skill.icon}
+                    name={skill.name}
+                    description={skill.description}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
