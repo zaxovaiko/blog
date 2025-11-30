@@ -19,7 +19,7 @@ export const Links = () => {
       href: "https://www.linkedin.com/in/zaxovaiko/",
       text: "Linkedin",
     },
-    { icon: IconUserCode, href: "/", text: "About me", soon: true },
+    { icon: IconUserCode, href: "/about", text: "About me" },
     { icon: IconFolders, href: "/", text: "Portfolio", soon: true },
     { icon: IconMail, href: "mailto:contact@zaxovaiko.me", text: "Contact me" },
   ];
