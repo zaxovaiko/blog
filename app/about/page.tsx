@@ -28,7 +28,6 @@ import {
   IconTestPipe,
   IconBrandJavascript,
   IconCpu,
-  IconCircleLetterR,
   IconBrandPhp,
   IconBrandCpp,
   IconBrandRust,
@@ -42,6 +41,10 @@ import {
   IconBrandApple,
   IconChartBar,
   IconCurrencyDollar,
+  IconBrandGraphql,
+  IconBrandAngular,
+  IconBrandStorybook,
+  IconBrandReact,
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { SkillCard } from "./skill-card";
@@ -55,20 +58,39 @@ export const metadata = {
 export default function AboutPage() {
   const skillCategories = [
     {
-      title: "Languages & Runtimes",
-      description: "Core languages and modern JS runtimes",
+      title: "Languages",
+      description: "Core programming languages",
       skills: [
         { icon: IconBrandTypescript, name: "TypeScript" },
+        { icon: IconBrandJavascript, name: "JavaScript" },
         { icon: IconBrandPython, name: "Python" },
+      ],
+    },
+    {
+      title: "Runtimes",
+      description: "Modern JS runtimes",
+      skills: [
+        { icon: IconBrandNodejs, name: "Node.js" },
         { icon: IconBrandDeno, name: "Deno" },
         { icon: IconBrandBunpo, name: "Bun" },
+      ],
+    },
+    {
+      title: "Mobile Development",
+      description: "Cross-platform mobile applications",
+      skills: [
+        { icon: IconBrandReactNative, name: "React Native" },
+        { icon: IconDeviceMobile, name: "Expo" },
       ],
     },
     {
       title: "Frameworks & Styling",
       description: "Servers, frameworks and UI tooling",
       skills: [
-        { icon: IconCode, name: "React & Next.js" },
+        { icon: IconBrandReact, name: "React" },
+        { icon: IconBrandVercel, name: "Next.js" },
+        { icon: IconBrandGraphql, name: "GraphQL" },
+        { icon: IconBrandAngular, name: "Angular" },
         { icon: IconBrandJavascript, name: "RxJS" },
         { icon: IconBrandNodejs, name: "Nest.js" },
         { icon: IconBrandTailwind, name: "Tailwind" },
@@ -79,8 +101,9 @@ export default function AboutPage() {
       title: "Databases & ORMs",
       description: "Data stores and modern ORMs",
       skills: [
-        { icon: IconDatabase, name: "Postgres / SQL" },
+        { icon: IconDatabase, name: "Postgres" },
         { icon: IconBrandMongodb, name: "MongoDB" },
+        { icon: IconDatabase, name: "Redis" },
         { icon: IconBrandPrisma, name: "Prisma / Drizzle / Other ORMs" },
       ],
     },
@@ -94,7 +117,18 @@ export default function AboutPage() {
         { icon: IconTrain, name: "Railway" },
         { icon: IconCloud, name: "DigitalOcean" },
         { icon: IconCloud, name: "Sevalla" },
+        { icon: IconCloud, name: "Render" },
         { icon: IconCloud, name: "Heroku" },
+      ],
+    },
+    {
+      title: "AI & Machine Learning",
+      description: "Building intelligent solutions",
+      skills: [
+        { icon: IconRobot, name: "LLM Integration" },
+        { icon: IconBrain, name: "RAG Systems" },
+        { icon: IconMessageChatbot, name: "MCP" },
+        { icon: IconDatabase, name: "Vector Databases" },
       ],
     },
     {
@@ -103,6 +137,7 @@ export default function AboutPage() {
       skills: [
         { icon: IconBrandDocker, name: "Docker" },
         { icon: IconBrandUbuntu, name: "Linux" },
+        { icon: IconBrandApple, name: "macOS" },
       ],
     },
     {
@@ -120,6 +155,8 @@ export default function AboutPage() {
         { icon: IconCurrencyDollar, name: "RevenueCat" },
         { icon: IconChartBar, name: "PostHog" },
         { icon: IconBrandMixpanel, name: "Mixpanel" },
+        { icon: IconCode, name: "Sanity" },
+        { icon: IconCode, name: "Storyblok" },
       ],
     },
     {
@@ -135,25 +172,10 @@ export default function AboutPage() {
       description: "Testing tools, E2E frameworks, and CI/CD workflows",
       skills: [
         { icon: IconTestPipe, name: "Jest" },
+        { icon: IconTestPipe, name: "RTL" },
         { icon: IconDeviceMobile, name: "Detox" },
+        { icon: IconBrandStorybook, name: "Storybook" },
         { icon: IconGitBranch, name: "CI / CD" },
-      ],
-    },
-    {
-      title: "AI & Machine Learning",
-      description: "Building intelligent solutions",
-      skills: [
-        { icon: IconRobot, name: "LLM Integration" },
-        { icon: IconBrain, name: "RAG Systems" },
-        { icon: IconMessageChatbot, name: "MCP" },
-      ],
-    },
-    {
-      title: "Mobile Development",
-      description: "Cross-platform mobile applications",
-      skills: [
-        { icon: IconBrandReactNative, name: "React Native" },
-        { icon: IconDeviceMobile, name: "Expo" },
       ],
     },
     {
@@ -165,7 +187,6 @@ export default function AboutPage() {
         { icon: IconServer, name: "Java (Spring Boot)" },
         { icon: IconBrandCpp, name: "C++" },
         { icon: IconBrandRust, name: "Rust" },
-        { icon: IconCircleLetterR, name: "R" },
         { icon: IconCode, name: "Pascal" },
         { icon: IconCpu, name: "Assembler" },
       ],
@@ -187,11 +208,19 @@ export default function AboutPage() {
           exceptional digital experiences. I specialize in the TypeScript
           ecosystem, AI technologies, and mobile development.
         </p>
+        <p className="text-zinc-400 text-base sm:text-lg mt-6 sm:mt-8">
+          Below are some of the key skills and technologies I work with on a
+          daily basis.
+          <br />
+          However, the specific library or tool is secondary - what truly
+          matters is the ability to adapt, learn quickly, and apply best
+          practices to deliver high-quality solutions.
+        </p>
       </section>
 
       <section className="mt-8 sm:mt-10">
         <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">
-          My Skills
+          Skills & Technologies
         </h2>
         <div className="flex flex-col gap-6 sm:gap-8">
           {skillCategories.map((category) => (
@@ -216,13 +245,6 @@ export default function AboutPage() {
             </div>
           ))}
         </div>
-      </section>
-      <section className="mt-8 sm:mt-10">
-        <p className="text-zinc-400 text-sm sm:text-base mt-8 text-center">
-          However, the specific library or tool is secondary - what truly
-          matters is the ability to use the right tool effectively to solve the
-          problem.
-        </p>
       </section>
     </div>
   );

@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { animate } from "motion/react";
-import { useCallback, useEffect, useRef } from "react";
+import { PropsWithChildren, useCallback, useEffect, useRef } from "react";
 
 interface GlowingEffectProps {
   blur?: number;
@@ -27,7 +27,7 @@ const GlowingEffect = ({
   movementDuration = 2,
   borderWidth = 1,
   disabled = true,
-}: GlowingEffectProps) => {
+}: PropsWithChildren<GlowingEffectProps>) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const lastPosition = useRef({ x: 0, y: 0 });
   const animationFrameRef = useRef<number>(0);

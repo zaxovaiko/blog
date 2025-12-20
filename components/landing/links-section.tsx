@@ -1,9 +1,9 @@
 import {
   IconBrandGithub,
   IconBrandLinkedin,
-  IconFolders,
   IconMail,
   IconUserCode,
+  IconFileText,
 } from "@tabler/icons-react";
 import Link from "next/link";
 
@@ -20,7 +20,7 @@ export const Links = () => {
       text: "Linkedin",
     },
     { icon: IconUserCode, href: "/about", text: "About me" },
-    { icon: IconFolders, href: "/", text: "Portfolio", soon: true },
+    { icon: IconFileText, href: "/cv", text: "CV" },
     { icon: IconMail, href: "mailto:contact@zaxovaiko.me", text: "Contact me" },
   ];
 
@@ -34,11 +34,6 @@ export const Links = () => {
         >
           <link.icon size={26} stroke={2} />
           <span>{link.text}</span>
-          {link.soon && (
-            <span className="ml-1 text-zinc-950 text-xs px-2 rounded-full bg-accent">
-              soon
-            </span>
-          )}
         </Link>
       ))}
     </section>
