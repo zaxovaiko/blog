@@ -48,11 +48,15 @@ import {
 } from "@tabler/icons-react";
 import Link from "next/link";
 import { SkillCard } from "./skill-card";
+import { generatePersonSchema } from "@/lib/schemas";
 
 export const metadata = {
   title: "About Me | zaxovaiko",
   description:
     "Learn about my skills and expertise in TypeScript, AI, and mobile development",
+  other: {
+    "script:ld+json": JSON.stringify(generatePersonSchema()),
+  },
 };
 
 export default function AboutPage() {

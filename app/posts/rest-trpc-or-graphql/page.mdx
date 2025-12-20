@@ -1,10 +1,25 @@
+import { generateBlogPostingSchema } from "@/lib/schemas";
+
 export const metadata = {
 	title:
 		"REST API, tRPC, or GraphQL? What would you choose for your new mobile app startup?",
 	description:
 		"Choosing between REST, tRPC and GraphQL for mobile app backends — pros and cons from a developer's perspective.",
-	openGraph: { type: "article", images: "/vazco.svg" },
+	openGraph: { type: "article", images: "/posts/rest-trpc-or-graphql/opengraph-image" },
 	twitter: { card: "summary_large_image" },
+	other: {
+		"script:ld+json": JSON.stringify(
+			generateBlogPostingSchema({
+				title:
+					"REST API, tRPC, or GraphQL? What would you choose for your new mobile app startup?",
+				description:
+					"Choosing between REST, tRPC and GraphQL for mobile app backends — pros and cons from a developer's perspective.",
+				slug: "rest-trpc-or-graphql",
+				datePublished: "2025-05-11T00:00:00Z",
+				tags: ["REST API", "GraphQL", "tRPC"],
+			})
+		),
+	},
 };
 
 # REST API, tRPC, or GraphQL? What would you choose for your new mobile app startup?

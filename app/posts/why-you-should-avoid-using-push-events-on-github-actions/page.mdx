@@ -1,10 +1,25 @@
+import { generateBlogPostingSchema } from "@/lib/schemas";
+
 export const metadata = {
   title:
     "How to bankrupt your client or why you should avoid using `on push` events on Github Actions",
   description:
     "A cautionary story about using push triggers for GitHub Actions and how it can spam CI/minutes — safer alternatives explained.",
-  openGraph: { type: "article", images: "/vazco.svg" },
+  openGraph: { type: "article", images: "/posts/why-you-should-avoid-using-push-events-on-github-actions/opengraph-image" },
   twitter: { card: "summary_large_image" },
+  other: {
+    "script:ld+json": JSON.stringify(
+      generateBlogPostingSchema({
+        title:
+          "How to bankrupt your client or why you should avoid using `on push` events on Github Actions",
+        description:
+          "A cautionary story about using push triggers for GitHub Actions and how it can spam CI/minutes — safer alternatives explained.",
+        slug: "why-you-should-avoid-using-push-events-on-github-actions",
+        datePublished: "2024-12-12T00:00:00Z",
+        tags: ["Github Actions", "CI/CD", "Hooks"],
+      })
+    ),
+  },
 };
 
 # How to bankrupt your client or why you should avoid using `on push` events on Github Actions

@@ -4,7 +4,10 @@ import { defaultMetadata } from "@/lib/seo";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-export const metadata: Metadata = defaultMetadata;
+export const metadata: Metadata = {
+  ...defaultMetadata,
+  metadataBase: new URL("https://zaxovaiko.me"),
+};
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],

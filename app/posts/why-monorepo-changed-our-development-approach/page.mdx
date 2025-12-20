@@ -1,9 +1,23 @@
+import { generateBlogPostingSchema } from "@/lib/schemas";
+
 export const metadata = {
   title: "Why monorepo changed our development approach",
   description:
     "How moving to a monorepo improved developer experience, caching, and build speed — lessons learned.",
-  openGraph: { type: "article", images: "/vazco.svg" },
+  openGraph: { type: "article", images: "/posts/why-monorepo-changed-our-development-approach/opengraph-image" },
   twitter: { card: "summary_large_image" },
+  other: {
+    "script:ld+json": JSON.stringify(
+      generateBlogPostingSchema({
+        title: "Why monorepo changed our development approach",
+        description:
+          "How moving to a monorepo improved developer experience, caching, and build speed — lessons learned.",
+        slug: "why-monorepo-changed-our-development-approach",
+        datePublished: "2024-12-30T00:00:00Z",
+        tags: ["Monorepo", "CI/CD", "GraphQL", "Codegen"],
+      })
+    ),
+  },
 };
 
 # Pre story

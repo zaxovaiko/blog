@@ -1,9 +1,23 @@
+import { generateBlogPostingSchema } from "@/lib/schemas";
+
 export const metadata = {
   title: "Should I migrate bare React Native project to Expo?",
   description:
     "Should you migrate a bare React Native project to Expo? Pros, cons, and practical experience from a real project.",
-  openGraph: { type: "article", images: "/vazco.svg" },
+  openGraph: { type: "article", images: "/posts/should-i-migrate-to-expo/opengraph-image" },
   twitter: { card: "summary_large_image" },
+  other: {
+    "script:ld+json": JSON.stringify(
+      generateBlogPostingSchema({
+        title: "Should I migrate bare React Native project to Expo?",
+        description:
+          "Should you migrate a bare React Native project to Expo? Pros, cons, and practical experience from a real project.",
+        slug: "should-i-migrate-to-expo",
+        datePublished: "2024-11-30T00:00:00Z",
+        tags: ["React Native", "Expo", "DX"],
+      })
+    ),
+  },
 };
 
 # Should I migrate bare React Native project to Expo?

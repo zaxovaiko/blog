@@ -4,6 +4,7 @@ const SITE_NAME = "zaxovaiko";
 const DEFAULT_DESCRIPTION = "Just my thoughts and views on various topics";
 const SITE_URL = "https://zaxovaiko.me";
 const DEFAULT_OG_IMAGE = "/vazco.svg";
+const AUTHOR_NAME = "Volodymyr Zakhovaiko";
 
 export function createMetadata({
   title,
@@ -11,12 +12,20 @@ export function createMetadata({
   pathname,
   type = "website",
   image = DEFAULT_OG_IMAGE,
+  publishedTime,
+  modifiedTime,
+  authors = [AUTHOR_NAME],
+  tags = [],
 }: {
   title?: string;
   description?: string;
   pathname?: string;
   type?: "website" | "article";
   image?: string;
+  publishedTime?: string;
+  modifiedTime?: string;
+  authors?: string[];
+  tags?: string[];
 }): Metadata {
   const titleWithSite = title ? `${title} | ${SITE_NAME}` : SITE_NAME;
 
@@ -25,6 +34,8 @@ export function createMetadata({
   const metadata: Metadata = {
     title: titleWithSite,
     description: description ?? DEFAULT_DESCRIPTION,
+    authors: authors.map((name) => ({ name })),
+    keywords: tags,
     openGraph: {
       type,
       title: titleWithSite,
@@ -32,12 +43,20 @@ export function createMetadata({
       url,
       siteName: SITE_NAME,
       images: [image],
+      ...(type === "article" &&
+        publishedTime && {
+          publishedTime,
+          modifiedTime: modifiedTime || publishedTime,
+          authors: authors,
+          tags,
+        }),
     },
     twitter: {
       card: "summary_large_image",
       title: titleWithSite,
       description: description ?? DEFAULT_DESCRIPTION,
       images: [image],
+      creator: "@zaxovaiko",
     },
     alternates: {
       canonical: url,
