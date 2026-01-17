@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 export const Hero = () => {
   return (
     <section className="flex flex-col pt-20 relative">
@@ -7,11 +5,10 @@ export const Hero = () => {
       <p className="text-zinc-500 text-lg flex gap-1 sm:gap-2 text-start flex-wrap">
         a Senior Fullstack Developer at
         <a
-          href="https://vazco.eu"
+          href="https://blurify.pl"
           className="current-company flex gap-1 items-center"
         >
-          <Image src="/vazco.svg" alt="Vazco" width={20} height={20} />
-          Vazco
+          Blurify
         </a>
       </p>
     </section>

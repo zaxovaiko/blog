@@ -51,7 +51,7 @@ import { SkillCard } from "./skill-card";
 import { generatePersonSchema } from "@/lib/schemas";
 
 export const metadata = {
-  title: "About Me | zaxovaiko",
+  title: "Tech I use",
   description:
     "Learn about my skills and expertise in TypeScript, AI, and mobile development",
   other: {
@@ -206,12 +206,7 @@ export default function AboutPage() {
       </Link>
 
       <section className="flex flex-col pt-8 sm:pt-10">
-        <h1 className="text-2xl sm:text-3xl font-bold">About Me</h1>
-        <p className="text-zinc-400 text-base sm:text-lg mt-3 sm:mt-4">
-          I&apos;m a Senior Fullstack Developer passionate about building
-          exceptional digital experiences. I specialize in the TypeScript
-          ecosystem, AI technologies, and mobile development.
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold">Tech I use</h1>
         <p className="text-zinc-400 text-base sm:text-lg mt-6 sm:mt-8">
           Below are some of the key skills and technologies I work with on a
           daily basis.
@@ -223,9 +218,6 @@ export default function AboutPage() {
       </section>
 
       <section className="mt-8 sm:mt-10">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">
-          Skills & Technologies
-        </h2>
         <div className="flex flex-col gap-6 sm:gap-8">
           {skillCategories.map((category) => (
             <div key={category.title} className="flex flex-col gap-3 sm:gap-4">

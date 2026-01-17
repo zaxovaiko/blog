@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 const SITE_NAME = "zaxovaiko";
 const DEFAULT_DESCRIPTION = "Just my thoughts and views on various topics";
 const SITE_URL = "https://zaxovaiko.me";
-const DEFAULT_OG_IMAGE = "/vazco.svg";
 const AUTHOR_NAME = "Volodymyr Zakhovaiko";
 
 export function createMetadata({
@@ -11,7 +10,7 @@ export function createMetadata({
   description,
   pathname,
   type = "website",
-  image = DEFAULT_OG_IMAGE,
+  image,
   publishedTime,
   modifiedTime,
   authors = [AUTHOR_NAME],
@@ -42,7 +41,7 @@ export function createMetadata({
       description: description ?? DEFAULT_DESCRIPTION,
       url,
       siteName: SITE_NAME,
-      images: [image],
+      images: image ? [image] : undefined,
       ...(type === "article" &&
         publishedTime && {
           publishedTime,
@@ -50,13 +49,6 @@ export function createMetadata({
           authors: authors,
           tags,
         }),
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: titleWithSite,
-      description: description ?? DEFAULT_DESCRIPTION,
-      images: [image],
-      creator: "@zaxovaiko",
     },
     alternates: {
       canonical: url,

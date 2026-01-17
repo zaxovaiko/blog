@@ -27,8 +27,18 @@ const languages = [
 const experiences = [
   {
     title: "Senior Full-Stack Developer",
+    company: "Blurify",
+    period: "Jan 2026 - Present",
+    achievements: [
+      {
+        text: "Just started working at Blurify. More details will be added soon.",
+      },
+    ],
+  },
+  {
+    title: "Senior Full-Stack Developer",
     company: "Vazco",
-    period: "Mar 2022 - Present",
+    period: "Mar 2022 - Jan 2026",
     achievements: [
       {
         text: "Implemented a mobile application for ",
