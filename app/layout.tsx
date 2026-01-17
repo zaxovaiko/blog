@@ -6,7 +6,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import Script from "next/script";
 import AdUnit from "@/components/google-ad";
-import { NextScript } from "next/document";
 import Head from "next/head";
 
 export const metadata: Metadata = {
@@ -43,7 +42,6 @@ export default function RootLayout({
         <AdUnit adSlot="2311193246" />
         <Analytics />
         <SpeedInsights />
-        <NextScript />
       </body>
     </html>
   );
