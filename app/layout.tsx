@@ -28,14 +28,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <Head>
+      <head>
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5574848979220766"
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />
-      </Head>
+      </head>
       <body className={spaceGrotesk.className}>
         <div className="noise -z-10" />
         <main className="flex flex-1 px-4 container">{children}</main>
