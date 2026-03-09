@@ -11,79 +11,87 @@ import {
 import Link from "next/link";
 
 export const metadata = createMetadata({
-  title: "CV - Volodymur Zakhovaiko",
+  title: "CV - Volodymyr Zakhovaiko",
   description:
-    "Curriculum Vitae of Volodymur Zakhovaiko - Senior Fullstack Developer (Mobile & AI) with expertise in React, React Native, Next.js, and modern web technologies.",
+    "Curriculum Vitae of Volodymyr Zakhovaiko - Senior Fullstack Engineer with expertise in React, React Native, Next.js, and modern web technologies.",
   pathname: "/cv",
 });
 
 const languages = [
-  { name: "Polish", level: "C1" },
-  { name: "English", level: "B2" },
+  { name: "Polish", level: "Professional work proficiency" },
+  { name: "English", level: "Working proficiency" },
   { name: "Ukrainian", level: "Native" },
   { name: "Russian", level: "Native" },
 ];
 
+const skills = [
+  { category: "Languages", items: "TypeScript, JavaScript" },
+  { category: "Frameworks", items: "React, Next.js, Nest.js, Tanstack, Rx.js" },
+  { category: "Runtimes", items: "Node.js, Bun, Deno" },
+  { category: "Mobile", items: "React Native, Expo" },
+  { category: "Styling", items: "Tailwind, styled components" },
+  { category: "Databases", items: "PostgreSQL, Mongo, MySQL, Redis" },
+  { category: "Hosting", items: "AWS, GCP, Railway, Digital Ocean" },
+  { category: "AI", items: "MCP, RAG, AI SDK, n8n, vector databases" },
+  { category: "Testing", items: "Unit tests (Jest, RTL), E2E (Detox, Playwright)" },
+  { category: "Analytics", items: "Mixpanel, PostHog, Google Analytics" },
+  { category: "Communication", items: "REST API, GraphQL, RPC" },
+  { category: "Tried/Previously used", items: "Python, PHP (Laravel), Java, C++" },
+];
+
 const experiences = [
   {
-    title: "Senior Full-Stack Developer",
+    title: "Senior Fullstack Developer",
     company: "Blurify",
     period: "Jan 2026 - Present",
     achievements: [
       {
-        text: "Just started working at Blurify. More details will be added soon.",
+        text: "Led full-stack development of the TCS Interpreting platform — architected core infrastructure and delivered a production-ready solution.",
+      },
+      {
+        text: "Architected Player Account Management (PAM) system and CMS for iGaming projects — implemented user authentication, wallet management, and content delivery.",
       },
     ],
   },
   {
-    title: "Senior Full-Stack Developer",
+    title: "Senior Fullstack Developer",
     company: "Vazco",
-    period: "Mar 2022 - Jan 2026",
+    period: "Oct 2024 - Jan 2026",
     achievements: [
       {
-        text: "Implemented a mobile application for ",
-        link: { text: "Maka Kids", url: "https://makakids.com" },
-        text2:
-          ". Configured the entire CI/CD pipeline from scratch. Closely worked with the client and team to deliver the app as fast as possible to match the tight deadlines.",
+        text: "Promoted to Tech Lead — led 4-person team, served as primary client contact translating requirements into sprint roadmaps; onboarded and mentored 3 junior/mid developers on architecture and code review practices.",
       },
       {
-        text: "Lead the ",
-        link: {
-          text: "GeeGee",
-          url: "https://www.linkedin.com/company/geegee",
-        },
-        text2:
-          " project. Bootstrapped the whole backend infrastructure for a mobile application. Reduced tech debt by applying best practices and refactoring old code, leading to improved app speed and performance.",
+        text: "Reduced infrastructure costs by ~40% through API optimization, caching, and DDoS prevention; configured CI/CD pipelines across backend, React Native app, and CMS; audited legacy projects for security and performance issues.",
       },
       {
-        text: "Mentored less experienced team members.",
+        text: "Built AI-powered products reaching ~2.5k MAU — multi-agent educational chatbot (MCP protocol) and e-commerce AI assistant (Python, FastAPI, LangChain, Pinecone, OpenAI).",
+      },
+    ],
+  },
+  {
+    title: "Middle Fullstack Developer",
+    company: "Vazco",
+    period: "Aug 2022 - Oct 2024",
+    achievements: [
+      {
+        text: "Owned technical direction for a 4-dev team — built API security layer, CI/CD pipelines, and drove engineering standards through peer reviews and testing, cutting release cycles in half.",
       },
       {
-        text: "Actively communicated with clients about plans and project achievements.",
+        text: "Delivered core platform features serving ~1k DAU — payment integrations (Stripe, RevenueCat), calendar engine, analytics (Mixpanel, GA); led Java → TypeScript backend migration, reducing API response times by ~30% across ~40 endpoints.",
+      },
+    ],
+  },
+  {
+    title: "Junior Fullstack Developer",
+    company: "Vazco",
+    period: "Mar 2022 - Aug 2022",
+    achievements: [
+      {
+        text: "Shipped full-stack features (React, Gatsby, GraphQL, Apollo, Sanity.io) and modernized e-commerce with Shopify, multi-language support, and a 3D product configurator (Three.js, zustand), boosting conversion rates.",
       },
       {
-        text: "Implemented a personalized AI teacher application for the Ministry of Education, utilizing Wolfram Alpha, RAG, and custom AI agents.",
-      },
-      {
-        text: "Implemented an AI assistant for e-commerce with RAG process using Pinecone (vector db) and a custom agent framework.",
-      },
-      {
-        text: "Automated CI/CD workflows with AWS, GCP, Vercel, and Fastlane.",
-      },
-      {
-        text: "Worked with React and Next.js ecosystem, Firebase, MongoDB, PostgreSQL, and different CMSs like Sanity and Storyblok.",
-      },
-      {
-        text: "Developed a React Native app. Used GraphQL (Apollo) and tools like Jest/RTL and Detox.",
-      },
-      {
-        text: "Configured a payment system (subscriptions) with Stripe and RevenueCat integrations.",
-      },
-      {
-        text: "Maintained and actively contributed to OSS projects like ",
-        link: { text: "uniforms", url: "https://uniforms.tools" },
-        text2: ", ",
-        link2: { text: "sparrowql", url: "https://sparrowql.com" },
+        text: "Managed deployment & data infrastructure — database schemas, migrations, and CI/CD across Vercel and GCP.",
       },
     ],
   },
@@ -93,23 +101,10 @@ const experiences = [
     period: "Jul 2021 - Mar 2022",
     achievements: [
       {
-        text: "Implemented IoT applications with GraphQL, RxJS, and Angular.",
+        text: "Built IoT projects for Vodafone using Angular and GraphQL, working closely with the team to ship final products.",
       },
       {
-        text: "Boosted DX by migrating the custom internal playground to Storybook.",
-      },
-    ],
-  },
-  {
-    title: "Freelancing on Upwork",
-    company: "",
-    period: "Jul 2018 - Nov 2023",
-    achievements: [
-      {
-        text: "Interacted with the designers' team to deliver the websites using HTML/CSS, Bootstrap, and AMP.",
-      },
-      {
-        text: "Refactored and optimized multiple JS projects (integrated TS in JS code base).",
+        text: "Improved developer experience by migrating the custom component playground to Storybook, making UI development faster and easier for the team.",
       },
     ],
   },
@@ -126,23 +121,23 @@ export default function CVPage() {
 
       {/* Header Section */}
       <section className="flex flex-col">
-        <h1 className="text-3xl sm:text-4xl font-bold">Volodymur Zakhovaiko</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold">Volodymyr Zakhovaiko</h1>
         <p className="text-xl sm:text-2xl text-zinc-300 mt-2">
-          Senior Fullstack Developer (Mobile & AI)
+          Senior Fullstack Engineer
         </p>
 
         {/* Contact Info */}
         <div className="flex flex-wrap items-center gap-4 mt-4 text-zinc-400">
           <div className="flex items-center gap-2">
             <IconMapPin className="w-4 h-4 text-teal-400" />
-            <span className="text-sm sm:text-base">Wrocław, Poland</span>
+            <span className="text-sm sm:text-base">Wroclaw, Poland</span>
           </div>
           <a
-            href="mailto:contact@zaxovaiko.me"
+            href="mailto:zaxovaiko@gmail.com"
             className="flex items-center gap-2 hover:text-teal-400 transition-colors"
           >
             <IconMail className="w-4 h-4 text-teal-400" />
-            <span className="text-sm sm:text-base">contact@zaxovaiko.me</span>
+            <span className="text-sm sm:text-base">zaxovaiko@gmail.com</span>
           </a>
           <a
             href="https://www.linkedin.com/in/zaxovaiko/"
@@ -165,11 +160,12 @@ export default function CVPage() {
         </div>
 
         <p className="text-zinc-400 text-base sm:text-lg mt-6 max-w-3xl leading-relaxed">
-          Hey, I&apos;m an experienced fullstack dev looking for a great
-          opportunity to use my skills and move my career forward. I can adapt
-          to new tech quickly and love starting and executing new projects.
-          I&apos;m detail-oriented and good with time management, which I think
-          will be an asset to any forward-thinking company.
+          Hi. My name is Volod, and I am passionate about creating useful
+          products (including my own), expanding them, and growing into something
+          substantial. I enjoy exploring new technologies that can make a
+          developer&apos;s life easier. I take a proactive approach, leading
+          teams to success and proposing innovative strategies in product
+          development.
         </p>
       </section>
 
@@ -202,16 +198,19 @@ export default function CVPage() {
         <h2 className="text-xl sm:text-2xl font-semibold text-teal-400 mb-6">
           Technical Skills
         </h2>
-        <p className="text-zinc-400 text-lg mb-4">
-          For a detailed breakdown of my skills and technologies, visit my{" "}
-          <Link
-            href="/about"
-            className="text-teal-400 hover:text-teal-300 underline"
-          >
-            skills page
-          </Link>
-          .
-        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          {skills.map((skill) => (
+            <div
+              key={skill.category}
+              className="flex gap-2 text-sm sm:text-base"
+            >
+              <span className="font-semibold text-zinc-300 shrink-0">
+                {skill.category}:
+              </span>
+              <span className="text-zinc-400">{skill.items}</span>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* Experience Section */}
@@ -249,30 +248,7 @@ export default function CVPage() {
                     className="flex gap-2 leading-relaxed items-start"
                   >
                     <span className="text-teal-400 flex-shrink-0">-</span>
-                    <span>
-                      {achievement.text}
-                      {achievement.link && (
-                        <a
-                          href={achievement.link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-teal-400 hover:text-teal-300 underline underline-offset-2 transition-colors"
-                        >
-                          {achievement.link.text}
-                        </a>
-                      )}
-                      {achievement.text2}
-                      {achievement.link2 && (
-                        <a
-                          href={achievement.link2.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-teal-400 hover:text-teal-300 underline underline-offset-2 transition-colors"
-                        >
-                          {achievement.link2.text}
-                        </a>
-                      )}
-                    </span>
+                    <span>{achievement.text}</span>
                   </li>
                 ))}
               </ul>
@@ -291,7 +267,7 @@ export default function CVPage() {
             <IconSchool className="w-5 h-5 sm:w-6 sm:h-6 text-teal-400 flex-shrink-0 mt-1" />
             <div className="flex flex-col gap-1">
               <h3 className="text-base sm:text-lg font-semibold text-foreground">
-                Wroclaw University of Science and Technology
+                Wroclaw University of Science and Technology (2018-2022)
               </h3>
               <p className="text-sm sm:text-base text-zinc-300">
                 BSc in Computer Science
@@ -332,7 +308,7 @@ export default function CVPage() {
           Regulation (EU) 2016/679 of the European Parliament and of the Council
           of 27 April 2016 on the protection of natural persons with regard to
           the processing of personal data and on the free movement of such data
-          and repealing Directive 95/46/EC (general Data Protection Regulation).
+          and repealing Directive 95/46/EC (General Data Protection Regulation).
         </p>
       </section>
     </div>
