@@ -8,6 +8,14 @@ export interface Post {
 
 export const posts: Post[] = [
   {
+    slug: "would-i-choose-deno-over-nodejs",
+    createdAt: "2026-03-10",
+    tags: ["Deno", "Node.js", "DX", "Runtime"],
+    title: "Would I choose Deno over Node.js for my own project?",
+    previewText:
+      "After using Deno at work, here's my honest take on whether I'd pick it over Node.js for a personal project — spoiler: it's complicated.",
+  },
+  {
     slug: "rest-trpc-or-graphql",
     createdAt: "2025-05-11",
     tags: ["REST API", "GraphQL", "tRPC"],

@@ -1,0 +1,94 @@
+import { generateBlogPostingSchema } from "@/lib/schemas";
+
+export const metadata = {
+	title: "Would I choose Deno over Node.js for my own project?",
+	description:
+		"After using Deno at work, here's my honest take on whether I'd pick it over Node.js for a personal project — spoiler: it's complicated.",
+	openGraph: { type: "article", images: "/posts/would-i-choose-deno-over-nodejs/opengraph-image" },
+	twitter: { card: "summary_large_image" },
+	other: {
+		"script:ld+json": JSON.stringify(
+			generateBlogPostingSchema({
+				title: "Would I choose Deno over Node.js for my own project?",
+				description:
+					"After using Deno at work, here's my honest take on whether I'd pick it over Node.js for a personal project — spoiler: it's complicated.",
+				slug: "would-i-choose-deno-over-nodejs",
+				datePublished: "2026-03-10T00:00:00Z",
+				tags: ["Deno", "Node.js", "DX", "Runtime"],
+			})
+		),
+	},
+};
+
+# Would I choose Deno over Node.js for my own project?
+
+The short answer is **no**. At least not today. The long one — keep reading.
+
+I've been using Node.js for years. It's not perfect, the ecosystem is messy, `node_modules` is a meme, and configuring ESLint + Prettier for the hundredth time makes me want to quit programming. So when Deno came along promising a better developer experience — built-in TypeScript, built-in formatter, built-in linter, no `node_modules` — I was genuinely excited. And when we decided to try it at work, I thought: "Finally, the future is here."
+
+Well... the future still needs some work.
+
+## The setup — what we were building
+
+At work, we had a monorepo with multiple packages — a client app and a server, plus a shared internal package that we develop and maintain ourselves. Nothing crazy. In the Node.js world, this is a well-trodden path: you `npm link` your local package, or use workspaces, and everything just works. We expected the same from Deno.
+
+## Problem #1 — Local packages are a nightmare
+
+Our biggest headache was local package development. We needed to build our internal package locally and connect it via `deno.json` (Deno's equivalent of `package.json`). Sounds simple, right?
+
+Turns out, Deno doesn't fully support local package linking the way npm does. There's no real equivalent of `npm link` that just works. We tried different workarounds — pointing to local paths, using import maps — but nothing felt stable. The package would sometimes resolve, sometimes not, and debugging why was incredibly frustrating. In Node.js, this takes about 30 seconds to set up. In Deno, we spent hours and still didn't have a reliable workflow.
+
+If you're just consuming packages from npm or JSR — sure, it works fine. But the moment you're actively developing a package and need a fast local feedback loop, Deno falls apart.
+
+## Problem #2 — Memory leaks (32 GB of RAM, gone)
+
+This one was wild. At some point, the Deno process started eating memory like crazy. We're talking **32 GB of RAM**. Not a typo. Whether this was Deno itself or the VSCode extension — I honestly don't know. But the result was the same: every few hours, someone on the team had to restart the Deno language server because their machine became unusable.
+
+Imagine you're deep in a debugging session, everything is slow, you check Activity Monitor, and there it is — `deno` casually consuming all your RAM. Fun times. This alone made the experience feel unstable and unpolished. With Node.js + TypeScript, I've never had a language server eat 32 GB of memory. Not once.
+
+## Problem #3 — Import extensions and sloppy imports
+
+Deno requires you to use explicit file extensions in imports — `.ts`, `.tsx`, etc. Coming from the Node.js/TypeScript world where you just import `./utils` and the bundler figures it out, this was annoying. Yes, there's the `--unstable-sloppy-imports` flag that lets you skip extensions, but:
+
+1. It's an **unstable** flag — the name literally tells you not to rely on it.
+2. It caused conflicts with VSCode. The Deno extension would auto-add `.ts` extensions to imports, and then the sloppy imports flag would sometimes behave differently. So you'd end up with inconsistent imports across the codebase, depending on who wrote the code and whether their IDE "helped" them.
+
+It's a small thing, but these small things add up. Death by a thousand paper cuts.
+
+## Problem #4 — Monorepo support is not there yet
+
+This was a dealbreaker for us. We had two projects in the monorepo — client and server — and we wanted to run them in parallel during development. You know, `dev:client` and `dev:server` running at the same time. In Node.js, you'd use workspaces with something like `turbo dev` or even a simple `concurrently` package.
+
+Deno's task runner doesn't support running tasks in parallel. You can't do something like "run these two tasks at the same time" out of the box. We had to install external tools like `concurrently` anyway — which kind of defeats the purpose of Deno's "batteries included" philosophy. If I still need npm packages for basic development workflows, what exactly am I gaining?
+
+## The good parts — because it's not all bad
+
+Let me be fair — Deno does some things really well:
+
+- **Built-in formatter and linter.** No more `eslint.config.js` + `prettier.config.js` + a dozen plugins. Just `deno fmt` and `deno lint`. This is genuinely nice, and I wish Node.js had something similar out of the box.
+- **Built-in TypeScript support.** No `tsconfig.json` tweaking, no `ts-node`, no build step for simple scripts. You just write `.ts` files and run them. Beautiful.
+- **npm and JSR compatibility.** Installing packages from both registries works well. We had no major issues with third-party dependencies.
+- **Security model.** The permissions system (`--allow-read`, `--allow-net`, etc.) is a good idea. Whether you actually use it in practice is another question, but it's there.
+
+## So, would I choose Deno for my own project?
+
+**Not today.** And here's why:
+
+For a personal project, I want to **move fast**. I want to set up a monorepo, link local packages, run things in parallel, and not fight my tools. Node.js lets me do that. The ecosystem is mature, the tooling is battle-tested, and when something breaks, there's always a Stack Overflow answer from 2019 that fixes it.
+
+Deno has great ideas. The vision is right — simpler tooling, better defaults, TypeScript-first. But the execution isn't there yet for real-world, multi-package projects. It feels like Deno is optimized for single-file scripts and small projects. The moment you scale up to a monorepo with local packages, parallel tasks, and heavy IDE usage, the cracks start showing.
+
+I'll keep an eye on Deno. Maybe in a year or two, these issues will be fixed. But for now, if I'm starting a new side project this weekend, I'm reaching for Node.js without a second thought. Sometimes boring and reliable beats shiny and frustrating.
+
+## Summary
+
+- **Local packages** — Deno doesn't have a reliable `npm link` equivalent. Building and testing local packages is painful.
+- **Memory leaks** — Deno processes (or VSCode extension) can consume up to 32 GB of RAM. Requires frequent restarts.
+- **Import extensions** — Explicit `.ts`/`.tsx` imports are required. The `--unstable-sloppy-imports` workaround causes VSCode conflicts.
+- **Monorepo support** — No native parallel task execution. You'll still need external tools like `concurrently`.
+- **The good stuff** — Built-in formatter, linter, TypeScript support, and npm/JSR compatibility are genuinely great.
+- **Verdict** — Great ideas, not yet ready for complex real-world projects. Stick with Node.js if you need reliability and speed of development.
+
+**P.S.** I'm not saying Deno is bad. It's just not ready for _my_ use case. If you're building a simple API or a CLI tool, Deno might actually be a great choice. But for a multi-package monorepo with active local development? Not yet.
+
+**P.S.** This article was formatted with [Claude](https://claude.ai/).
