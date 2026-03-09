@@ -133,11 +133,11 @@ export default function CVPage() {
             <span className="text-sm sm:text-base">Wroclaw, Poland</span>
           </div>
           <a
-            href="mailto:zaxovaiko@gmail.com"
+            href="mailto:contact@zaxovaiko.me"
             className="flex items-center gap-2 hover:text-teal-400 transition-colors"
           >
             <IconMail className="w-4 h-4 text-teal-400" />
-            <span className="text-sm sm:text-base">zaxovaiko@gmail.com</span>
+            <span className="text-sm sm:text-base">contact@zaxovaiko.me</span>
           </a>
           <a
             href="https://www.linkedin.com/in/zaxovaiko/"
