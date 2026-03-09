@@ -198,24 +198,17 @@ export default function CVPage() {
         <h2 className="text-xl sm:text-2xl font-semibold text-teal-400 mb-6">
           Technical Skills
         </h2>
-        <div className="flex flex-col gap-4">
-          {skills.map((skill) => (
-            <div key={skill.category} className="flex flex-col gap-2">
-              <span className="font-semibold text-zinc-300 text-sm sm:text-base">
-                {skill.category}
+        <div className="flex flex-wrap gap-2">
+          {skills.flatMap((skill) =>
+            skill.items.map((item) => (
+              <span
+                key={item}
+                className="text-teal-400 border border-teal-400 rounded-full px-3 py-0.5 text-sm"
+              >
+                {item}
               </span>
-              <div className="flex flex-wrap gap-2">
-                {skill.items.map((item) => (
-                  <span
-                    key={item}
-                    className="text-teal-400 border border-teal-400 rounded-full px-3 py-0.5 text-sm"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </section>
 
