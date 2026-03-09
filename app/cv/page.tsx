@@ -25,18 +25,18 @@ const languages = [
 ];
 
 const skills = [
-  { category: "Languages", items: "TypeScript, JavaScript" },
-  { category: "Frameworks", items: "React, Next.js, Nest.js, Tanstack, Rx.js" },
-  { category: "Runtimes", items: "Node.js, Bun, Deno" },
-  { category: "Mobile", items: "React Native, Expo" },
-  { category: "Styling", items: "Tailwind, styled components" },
-  { category: "Databases", items: "PostgreSQL, Mongo, MySQL, Redis" },
-  { category: "Hosting", items: "AWS, GCP, Railway, Digital Ocean" },
-  { category: "AI", items: "MCP, RAG, AI SDK, n8n, vector databases" },
-  { category: "Testing", items: "Unit tests (Jest, RTL), E2E (Detox, Playwright)" },
-  { category: "Analytics", items: "Mixpanel, PostHog, Google Analytics" },
-  { category: "Communication", items: "REST API, GraphQL, RPC" },
-  { category: "Tried/Previously used", items: "Python, PHP (Laravel), Java, C++" },
+  { category: "Languages", items: ["TypeScript", "JavaScript"] },
+  { category: "Frameworks", items: ["React", "Next.js", "Nest.js", "Tanstack", "Rx.js"] },
+  { category: "Runtimes", items: ["Node.js", "Bun", "Deno"] },
+  { category: "Mobile", items: ["React Native", "Expo"] },
+  { category: "Styling", items: ["Tailwind", "styled components"] },
+  { category: "Databases", items: ["PostgreSQL", "Mongo", "MySQL", "Redis"] },
+  { category: "Hosting", items: ["AWS", "GCP", "Railway", "Digital Ocean"] },
+  { category: "AI", items: ["MCP", "RAG", "AI SDK", "n8n", "vector databases"] },
+  { category: "Testing", items: ["Jest", "RTL", "Detox", "Playwright"] },
+  { category: "Analytics", items: ["Mixpanel", "PostHog", "Google Analytics"] },
+  { category: "Communication", items: ["REST API", "GraphQL", "RPC"] },
+  { category: "Tried/Previously used", items: ["Python", "PHP (Laravel)", "Java", "C++"] },
 ];
 
 const experiences = [
@@ -198,16 +198,22 @@ export default function CVPage() {
         <h2 className="text-xl sm:text-2xl font-semibold text-teal-400 mb-6">
           Technical Skills
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="flex flex-col gap-4">
           {skills.map((skill) => (
-            <div
-              key={skill.category}
-              className="flex gap-2 text-sm sm:text-base"
-            >
-              <span className="font-semibold text-zinc-300 shrink-0">
-                {skill.category}:
+            <div key={skill.category} className="flex flex-col gap-2">
+              <span className="font-semibold text-zinc-300 text-sm sm:text-base">
+                {skill.category}
               </span>
-              <span className="text-zinc-400">{skill.items}</span>
+              <div className="flex flex-wrap gap-2">
+                {skill.items.map((item) => (
+                  <span
+                    key={item}
+                    className="text-teal-400 border border-teal-400 rounded-full px-3 py-0.5 text-sm"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
           ))}
         </div>
