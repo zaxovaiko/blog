@@ -2,10 +2,6 @@ import {
   IconBrandGithub,
   IconBrandLinkedin,
   IconMail,
-  IconUserCode,
-  IconFileText,
-  Icon360View,
-  IconList,
   IconListDetails,
 } from "@tabler/icons-react";
 import Link from "next/link";
@@ -23,7 +19,6 @@ export const Links = () => {
       text: "Linkedin",
     },
     { icon: IconListDetails, href: "/about", text: "Tech I use" },
-    { icon: IconFileText, href: "/cv", text: "CV" },
     { icon: IconMail, href: "mailto:contact@zaxovaiko.me", text: "Contact me" },
   ];
 
