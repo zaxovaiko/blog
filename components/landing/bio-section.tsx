@@ -6,9 +6,15 @@ export const Bio = () => {
         for new ways to enhance my skills. Currently, I&apos;m engaged in the
         development of a few AI products for Ministry of Education. Also working
         on{" "}
-        <span className="font-semibold" style={{ color: "#662222" }}>
+        <a
+          href="https://ariex.fit"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold"
+          style={{ color: "#ff2457" }}
+        >
           ariex.fit
-        </span>{" "}
+        </a>{" "}
         — a mobile app.
       </h3>
     </section>
