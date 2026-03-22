@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { IconEye } from "@tabler/icons-react";
 import { Tag } from "../tag";
 import Link from "next/link";
 import { GlowingEffect } from "../ui/glowing-effect";
@@ -11,7 +12,7 @@ export type Post = {
   previewText: string;
 };
 
-export const PostCard = ({ post }: { post: Post }) => {
+export const PostCard = ({ post, views }: { post: Post; views: number }) => {
   const tags = post.tags;
 
   return (
@@ -35,9 +36,15 @@ export const PostCard = ({ post }: { post: Post }) => {
               return <Tag key={tag} text={tag} />;
             })}
           </div>
-          <p className="text-zinc-600 text-sm text-end min-w-24 leading-7">
-            {dayjs(post.createdAt).format("MMM DD, YYYY")}
-          </p>
+          <div className="flex items-center gap-3 min-w-24 justify-end">
+            <span className="flex items-center gap-1 text-zinc-600 text-sm">
+              <IconEye size={14} />
+              {views}
+            </span>
+            <p className="text-zinc-600 text-sm text-end leading-7">
+              {dayjs(post.createdAt).format("MMM DD, YYYY")}
+            </p>
+          </div>
         </div>
         <div className="flex justify-between items-start gap-4 flex-col sm:flex-row">
           <h3 className="text-lg font-bold text-foreground">{post.title}</h3>
