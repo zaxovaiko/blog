@@ -24,11 +24,3 @@ model PostLike {
   @@map("post_likes")
 }
 
-model PostView {
-  slug     String
-  ipHash   String   @map("ip_hash")
-  viewedAt DateTime @default(now()) @map("viewed_at")
-
-  @@id([slug, ipHash])
-  @@map("post_views")
-}

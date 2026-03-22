@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getIpHash, getClientIp } from "@/lib/ip";
+import { getClientIp } from "@/lib/ip";
 import { isRateLimited } from "@/lib/rate-limit";
 import { posts } from "@/lib/posts";
 
@@ -20,31 +20,13 @@ export async function POST(
   }
 
   try {
-    const ipHash = getIpHash(req);
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    // Check if this IP already viewed within 24h
-    const existing = await prisma.postView.findUnique({
-      where: { slug_ipHash: { slug, ipHash } },
+    const stats = await prisma.postStats.upsert({
+      where: { slug },
+      create: { slug, views: 1 },
+      update: { views: { increment: 1 } },
     });
 
-    if (!existing || existing.viewedAt < twentyFourHoursAgo) {
-      await prisma.postView.upsert({
-        where: { slug_ipHash: { slug, ipHash } },
-        create: { slug, ipHash },
-        update: { viewedAt: new Date() },
-      });
-
-      await prisma.postStats.upsert({
-        where: { slug },
-        create: { slug, views: 1 },
-        update: { views: { increment: 1 } },
-      });
-    }
-
-    const stats = await prisma.postStats.findUnique({ where: { slug } });
-
-    return NextResponse.json({ views: stats?.views ?? 0 });
+    return NextResponse.json({ views: stats.views });
   } catch {
     return NextResponse.json(
       { error: "Internal server error" },
