@@ -42,7 +42,7 @@ export function EngagementProvider({ children }: { children: React.ReactNode }) 
     fetch(`/api/posts/${slug}/stats`)
       .then((r) => r.json())
       .then((data) => {
-        setViews(data.views);
+        setViews(data.views + 1);
         setLikes(data.likes);
         setLiked(data.liked);
       })
@@ -60,6 +60,13 @@ export function EngagementProvider({ children }: { children: React.ReactNode }) 
     if (!slug || liking) return;
     setLiking(true);
 
+    const wasLiked = liked;
+    const prevLikes = likes ?? 0;
+
+    // Optimistic update
+    setLiked(!wasLiked);
+    setLikes(wasLiked ? prevLikes - 1 : prevLikes + 1);
+
     try {
       const res = await fetch(`/api/posts/${slug}/like`, { method: "POST" });
       const data = await res.json();
@@ -68,11 +75,13 @@ export function EngagementProvider({ children }: { children: React.ReactNode }) 
         setLiked(data.liked);
       }
     } catch {
-      // Silently fail
+      // Revert on failure
+      setLiked(wasLiked);
+      setLikes(prevLikes);
     } finally {
       setLiking(false);
     }
-  }, [slug, liking]);
+  }, [slug, liking, liked, likes]);
 
   return (
     <EngagementContext value={{ views, likes, liked, liking, handleLike }}>
