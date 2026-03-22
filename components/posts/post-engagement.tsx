@@ -82,40 +82,29 @@ export function EngagementProvider({ children }: { children: React.ReactNode }) 
 }
 
 export function PostStats() {
-  const { views, likes } = useContext(EngagementContext);
+  const { views, likes, liked, liking, handleLike } =
+    useContext(EngagementContext);
 
   if (views === null && likes === null) return null;
 
   return (
-    <div className="flex items-center gap-3 text-zinc-500 text-sm not-prose">
-      <div className="flex items-center gap-1.5">
-        <IconEye size={16} />
-        <span>{views ?? 0}</span>
+    <>
+      <div className="flex items-center gap-6 text-zinc-500 text-sm not-prose mt-3">
+        <div className="flex items-center gap-1.5">
+          <IconEye size={16} />
+          <span>{views ?? 0}</span>
+        </div>
+        <button
+          onClick={handleLike}
+          disabled={liking}
+          className="flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+          style={{ color: liked ? "#ef4444" : "#71717a" }}
+        >
+          {liked ? <IconHeartFilled size={16} /> : <IconHeart size={16} />}
+          <span>{likes ?? 0}</span>
+        </button>
       </div>
-      <div className="flex items-center gap-1.5">
-        <IconHeart size={16} />
-        <span>{likes ?? 0}</span>
-      </div>
-    </div>
-  );
-}
-
-export function PostLikeButton() {
-  const { likes, liked, liking, handleLike } = useContext(EngagementContext);
-
-  if (likes === null) return null;
-
-  return (
-    <div className="flex items-center pt-6 border-t border-zinc-800 not-prose">
-      <button
-        onClick={handleLike}
-        disabled={liking}
-        className="flex items-center gap-1.5 text-sm transition-colors cursor-pointer disabled:opacity-50"
-        style={{ color: liked ? "#ef4444" : "#71717a" }}
-      >
-        {liked ? <IconHeartFilled size={18} /> : <IconHeart size={18} />}
-        <span>{likes ?? 0}</span>
-      </button>
-    </div>
+      <hr />
+    </>
   );
 }
