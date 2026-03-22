@@ -88,23 +88,20 @@ export function PostStats() {
   if (views === null && likes === null) return null;
 
   return (
-    <>
-      <div className="flex items-center gap-6 text-zinc-500 text-sm not-prose mt-3">
-        <div className="flex items-center gap-1.5">
-          <IconEye size={16} />
-          <span>{views ?? 0}</span>
-        </div>
-        <button
-          onClick={handleLike}
-          disabled={liking}
-          className="flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-          style={{ color: liked ? "#ef4444" : "#71717a" }}
-        >
-          {liked ? <IconHeartFilled size={16} /> : <IconHeart size={16} />}
-          <span>{likes ?? 0}</span>
-        </button>
+    <div className="absolute top-0 right-0 flex items-center gap-6 text-zinc-500">
+      <div className="flex items-center gap-2">
+        <IconEye size={20} />
+        <span>{views ?? 0}</span>
       </div>
-      <hr />
-    </>
+      <button
+        onClick={handleLike}
+        disabled={liking}
+        className="flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+        style={{ color: liked ? "#ef4444" : "#71717a" }}
+      >
+        {liked ? <IconHeartFilled size={20} /> : <IconHeart size={20} />}
+        <span>{likes ?? 0}</span>
+      </button>
+    </div>
   );
 }

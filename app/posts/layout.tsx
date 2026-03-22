@@ -1,5 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { EngagementProvider } from "@/components/posts/post-engagement";
+import {
+  EngagementProvider,
+  PostStats,
+} from "@/components/posts/post-engagement";
 import Link from "next/link";
 
 export default function MdxLayout({ children }: { children: React.ReactNode }) {
@@ -11,9 +14,12 @@ export default function MdxLayout({ children }: { children: React.ReactNode }) {
         </Button>
       </Link>
       <EngagementProvider>
-        <article className="text-stone-400 flex flex-col prose dark:prose-invert prose-invert py-10 prose-h1:mb-0 prose-h1:mt-10 prose-h2:mt-3 prose-h2:mb-3 prose-blockquote:border-foreground/20 prose-blockquote:text-foreground/50 prose-a:text-accent prose-hr:mt-4 prose-hr:mb-0">
-          {children}
-        </article>
+        <div className="relative">
+          <PostStats />
+          <article className="text-stone-400 flex flex-col prose dark:prose-invert prose-invert py-10 prose-h1:mb-0 prose-h1:mt-10 prose-h2:mt-3 prose-h2:mb-3 prose-blockquote:border-foreground/20 prose-blockquote:text-foreground/50 prose-a:text-accent prose-hr:mt-4 prose-hr:mb-0">
+            {children}
+          </article>
+        </div>
       </EngagementProvider>
     </div>
   );
