@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model PostStats {
+  slug  String @id
+  views Int    @default(0)
+  likes Int    @default(0)
+
+  @@map("post_stats")
+}
+
+model PostLike {
+  slug      String
+  ipHash    String   @map("ip_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([slug, ipHash])
+  @@map("post_likes")
+}
+
+model PostView {
+  slug     String
+  ipHash   String   @map("ip_hash")
+  viewedAt DateTime @default(now()) @map("viewed_at")
+
+  @@id([slug, ipHash])
+  @@map("post_views")
+}

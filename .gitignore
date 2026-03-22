@@ -2,4 +2,8 @@ node_modules/
 dist/
 .vscode/
 .next/
+.env
+.env.local
+.env.production
 
+/lib/generated/prisma
