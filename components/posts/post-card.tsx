@@ -30,14 +30,14 @@ export const PostCard = ({ post, views }: { post: Post; views: number }) => {
           proximity={50}
           inactiveZone={0.01}
         />
-        <div className="flex flex-row items-center justify-between">
+        <div className="flex flex-row items-center justify-between mb-2 sm:mb-0">
           <div className="flex flex-wrap gap-2">
             {tags.map((tag) => {
               return <Tag key={tag} text={tag} />;
             })}
           </div>
           <div className="flex items-center gap-3 min-w-24 justify-end">
-            <span className="flex items-center gap-1 text-zinc-600 text-sm">
+            <span className="hidden sm:flex items-center gap-1 text-zinc-600 text-sm">
               <IconEye size={14} />
               {views}
             </span>
@@ -53,6 +53,11 @@ export const PostCard = ({ post, views }: { post: Post; views: number }) => {
         <article className="text-zinc-400 text-left">
           {post.previewText}
         </article>
+
+        <span className="flex sm:hidden items-center gap-1 text-zinc-600 text-sm">
+          <IconEye size={14} />
+          {views}
+        </span>
       </div>
     </Link>
   );
