@@ -1,5 +1,7 @@
 import { Bio, Hero, Links } from "@/components/landing";
 import { PostCard } from "@/components/posts/post-card";
+import { NpmPackageCard } from "@/components/npm-package-card";
+import { AriexFitCard } from "@/components/ariex-fit-card";
 import { createMetadata } from "@/lib/seo";
 import { posts } from "@/lib/posts";
 import { generateWebSiteSchema } from "@/lib/schemas";
@@ -16,7 +18,13 @@ export default async function Home() {
       <Hero />
       <Bio />
       <Links />
-      <section className="flex flex-col gap-2 mt-5">
+      <section className="flex flex-col gap-4 mt-5">
+        <p className="text-zinc-500 text-xs uppercase tracking-widest">Open Source</p>
+        <NpmPackageCard />
+        <AriexFitCard />
+      </section>
+      <section className="flex flex-col gap-2">
+        <p className="text-zinc-500 text-xs uppercase tracking-widest">Writing</p>
         {posts.map((post) => (
           <PostCard key={post.slug} post={post} views={viewsMap[post.slug] ?? 0} />
         ))}
