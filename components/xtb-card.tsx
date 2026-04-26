@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   IconWorld,
   IconChartLine,
-  IconHome,
 } from "@tabler/icons-react";
 import { GlowingEffect } from "./ui/glowing-effect";
 
@@ -14,7 +13,6 @@ const FEATURES = [
   "IKE contribution tracking",
   "expense tracker",
   "concentration risk",
-  "self-hosted",
 ];
 
 export const XtbCard = () => {
@@ -35,10 +33,6 @@ export const XtbCard = () => {
           <IconChartLine size={18} className="text-teal-400" />
           <span className="font-mono font-bold text-foreground text-lg">xtb.zaxovaiko.me</span>
         </div>
-        <span className="flex items-center gap-1.5 text-xs text-zinc-400 border border-zinc-700/60 bg-zinc-900/40 rounded-full px-2.5 py-1">
-          <IconHome size={12} />
-          self-hosted
-        </span>
       </div>
 
       <p className="text-zinc-400 text-sm leading-relaxed">
