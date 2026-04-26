@@ -1,14 +1,23 @@
 import Link from "next/link";
 import {
   IconWorld,
-  IconBarbell,
-  IconBrandAppstore,
+  IconChartLine,
+  IconHome,
 } from "@tabler/icons-react";
 import { GlowingEffect } from "./ui/glowing-effect";
 
-const FEATURES = ["AI training plans", "Apple Health sync", "AI machine scanner", "3D exercise demos", "gamification"];
+const FEATURES = [
+  "IKE + Regular account aggregation",
+  "FIRE forecast",
+  "dividend analytics",
+  "P&L in PLN with FX",
+  "IKE contribution tracking",
+  "expense tracker",
+  "concentration risk",
+  "self-hosted",
+];
 
-export const AriexFitCard = () => {
+export const XtbCard = () => {
   return (
     <div className="rounded-lg py-6 px-6 gap-4 flex flex-col shadow-lg border border-zinc-800 bg-background/80 backdrop-blur-sm">
       <GlowingEffect
@@ -23,21 +32,25 @@ export const AriexFitCard = () => {
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <IconBarbell size={18} className="text-teal-400" />
-          <span className="font-mono font-bold text-foreground text-lg">ariex.fit</span>
+          <IconChartLine size={18} className="text-teal-400" />
+          <span className="font-mono font-bold text-foreground text-lg">xtb.zaxovaiko.me</span>
         </div>
+        <span className="flex items-center gap-1.5 text-xs text-zinc-400 border border-zinc-700/60 bg-zinc-900/40 rounded-full px-2.5 py-1">
+          <IconHome size={12} />
+          self-hosted
+        </span>
       </div>
 
       <p className="text-zinc-400 text-sm leading-relaxed">
-        AI-powered fitness app for iOS. Generates personalized training plans, tracks workouts
-        in real time, syncs with <span className="text-zinc-300">Apple Health</span>, and uses
-        computer vision to identify gym equipment via camera.
+        Personal finance dashboard for Polish retail investors using{" "}
+        <span className="text-zinc-300">XTB broker</span>. Drop your XTB Excel exports - the
+        app parses them and gives you a full portfolio picture in one dashboard.
       </p>
 
       <blockquote className="border-l-2 border-teal-800 pl-3 text-sm text-zinc-500 italic">
-        Most fitness apps hand you a static plan and call it personalization. I wanted something
-        that actually knows your gym, adapts to your progress, and makes showing up feel rewarding.
-        So I built it.
+        XTB&apos;s built-in reporting has no FIRE planning, no cross-account aggregation,
+        no dividend analytics. I built what I actually needed to track my path to financial
+        independence.
       </blockquote>
 
       <div className="flex flex-wrap gap-2">
@@ -53,22 +66,13 @@ export const AriexFitCard = () => {
 
       <div className="flex gap-5 mt-1 flex-wrap">
         <Link
-          href="https://ariex.fit"
+          href="https://xtb.zaxovaiko.me"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-200 transition-colors"
         >
           <IconWorld size={16} />
-          ariex.fit
-        </Link>
-        <Link
-          href="https://apps.apple.com/us/app/ariex/id6759071410"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-200 transition-colors"
-        >
-          <IconBrandAppstore size={16} />
-          App Store
+          xtb.zaxovaiko.me
         </Link>
       </div>
     </div>

@@ -3,7 +3,6 @@ import {
   IconBrandNpm,
   IconBrandGithub,
   IconBook,
-  IconActivity,
   IconTerminal2,
 } from "@tabler/icons-react";
 import { GlowingEffect } from "./ui/glowing-effect";
@@ -28,10 +27,6 @@ export const NpmPackageCard = () => {
           <IconTerminal2 size={18} className="text-teal-400" />
           <span className="font-mono font-bold text-foreground text-lg">depretec</span>
         </div>
-        <span className="flex items-center gap-1.5 text-xs text-emerald-400 border border-emerald-800/60 bg-emerald-950/40 rounded-full px-2.5 py-1">
-          <IconActivity size={12} />
-          actively developing
-        </span>
       </div>
 
       <p className="text-zinc-400 text-sm leading-relaxed">
