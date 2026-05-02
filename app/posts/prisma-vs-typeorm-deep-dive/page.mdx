@@ -1,0 +1,364 @@
+import { generateBlogPostingSchema } from "@/lib/schemas";
+
+export const metadata = {
+	title:
+		"Prisma vs TypeORM: a fair benchmark, every caveat, every footgun",
+	description:
+		"I ran 12 scenarios on Railway against both ORMs, dug into pg_stat_statements, fixed the unfair bits, and learned exactly why Prisma is slower and uses 2-3x more memory than TypeORM.",
+	openGraph: { type: "article" },
+	twitter: { card: "summary_large_image" },
+	other: {
+		"script:ld+json": JSON.stringify(
+			generateBlogPostingSchema({
+				title:
+					"Prisma vs TypeORM: a fair benchmark, every caveat, every footgun",
+				description:
+					"I ran 12 scenarios on Railway against both ORMs, dug into pg_stat_statements, fixed the unfair bits, and learned exactly why Prisma is slower and uses 2-3x more memory than TypeORM.",
+				slug: "prisma-vs-typeorm-deep-dive",
+				datePublished: "2026-05-03T00:00:00Z",
+				tags: ["Prisma", "TypeORM", "PostgreSQL", "Benchmark", "Performance"],
+			})
+		),
+	},
+};
+
+# Prisma vs TypeORM: a fair benchmark, every caveat, every footgun
+
+Every "Prisma vs X" benchmark online suffers from one of two problems: the author tested the Object-Relational Mappers (ORMs) doing different work (one fetches a count, the other doesn't), or they ran on a laptop that thermal-throttled mid-run. I wanted to know, with everything actually equal: which ORM is faster, by how much, and **why**?
+
+The thing that pushed me to actually run my own bench was [TypeORM vs Prisma — Same Schema, Different Performance Profile](https://blog.gopenai.com/typeorm-vs-prisma-same-schema-different-performance-profile-3c57c3b07219). It's a decent read, but the methodology has the usual problems: ran on a developer laptop, single ORM-vs-ORM scenario per query, no `pg_stat_statements` to verify what SQL was actually emitted, and the conclusions glossed over whether the two ORMs were doing the same logical work. I wanted apples-to-apples - same Postgres, same network, same payload, scenarios run alternately, with the actual emitted SQL verified.
+
+Prisma's own team also published [Performance Benchmarks: Comparing Query Latency across TypeScript ORMs & Databases](https://www.prisma.io/blog/performance-benchmarks-comparing-query-latency-across-typescript-orms-and-databases), which is a more honest take from the obvious-conflict-of-interest party. They tested Prisma vs TypeORM vs Drizzle across RDS / Supabase / Neon, 14 queries × 500 sequential reps × 1k-row dataset, executed from a single EC2 instance. Their conclusion: "it depends, mostly similar ballparks." Worth reading, but the gaps that interest me aren't covered by their setup:
+
+- 1k records is tiny - real perf characteristics (cache misses, index scans, planner choices) only kick in at 10-100k rows.
+- 500 sequential reps measure single-thread latency, not behavior under concurrency. ORMs with worse connection-pool ergonomics (or query engine contention) only fall apart with 100+ Virtual Users hitting at once.
+- Median only, no p95/p99. Tail latency is where the interesting differences live.
+- No memory tracking. Spoiler from this post: that's where Prisma loses hardest.
+- No transactions, complex filters, or N+1 trap scenarios.
+
+So this post is the version I wished existed: 12 scenarios including the stress cases, p95 + p99 + memory captured, real concurrency (500 VUs), real network latency, and a verified SQL trail via `pg_stat_statements`.
+
+Spoiler: TypeORM wins most scenarios, but not for the reasons I expected. Prisma's losses come from generated Structured Query Language (SQL) quirks, not the query engine layer everyone blames. And the memory cost is the real story - Prisma uses **2-3x more RAM** under load on JOIN-heavy paths.
+
+This post is the journey: setup, what I found, what I had to fix to make it fair, and the concrete optimizations you can apply today.
+
+## Table of contents
+
+- [Setup](#setup)
+- [Round 1: the pagination shocker](#round-1-the-pagination-shocker)
+- [Round 2: the JOIN-heavy gap](#round-2-the-join-heavy-gap)
+- [Round 3: SQL quirks](#round-3-sql-quirks)
+- [Final results](#final-results)
+- [Why Prisma uses 2-3x more memory](#why-prisma-uses-2-3x-more-memory)
+- [Why Prisma is slower (the actual reasons)](#why-prisma-is-slower-the-actual-reasons)
+- [Top 5 Prisma performance killers](#top-5-prisma-performance-killers)
+- [TypeORM caveats too](#typeorm-caveats-too)
+- [Project health: GitHub at a glance](#project-health-github-at-a-glance)
+- [The optimization checklist (Prisma without raw SQL)](#the-optimization-checklist-prisma-without-raw-sql)
+- [Verdict](#verdict)
+
+## Setup
+
+- Both Application Programming Interfaces (APIs) are NestJS 11, identical routes, deployed to **Railway** (so my laptop battery doesn't influence the numbers).
+- Same PostgreSQL 18 instance with two databases (`bench_prisma`, `bench_typeorm`), seeded byte-for-byte identically via raw SQL: 2k users, 20k posts, 100k comments, 50 categories.
+- Load generator: **k6** running inside Railway's private network (sub-millisecond Round-Trip Time, abbreviated RTT, to the APIs). Scenarios ramp 0 → 500 Virtual Users (VUs) over 100s.
+- Results stored in a separate `bench_runs` table on the same PostgreSQL. `pg_stat_statements` enabled on both databases to capture actual emitted SQL.
+- Metrics captured: `avg`, `p50`/`p95`/`p99` (the 50th/95th/99th percentile latency), `rps` (requests per second), `fail_pct`, plus **peak RSS** (Resident Set Size — total memory the process holds in RAM; polled `/metrics` endpoint exposing `process.memoryUsage()` every 2s).
+
+### Hardware / hosting specs
+
+| Resource | Spec |
+|---|---|
+| Region | `europe-west4-drams3a` (all services pinned, sub-ms private network) |
+| Plan | Railway Hobby ($5/seat) — 8 vCPU / 8 GB RAM cap per service, shared CPU |
+| API runtime | Node.js 24 (Alpine) on Railway's container builder, 1 replica each |
+| PostgreSQL | `ghcr.io/railwayapp-templates/postgres-ssl:18`, single instance, 5 GB volume |
+| k6 runner | Alpine + k6 + jq + psql, one-shot job, same private network |
+
+I deliberately did **not** scale up. Hobby-tier shared CPU with 8 GB RAM is what most people running a side project or a small SaaS on Railway will actually have. If you're wondering whether these numbers translate to a beefier setup: yes, with caveats. Bigger boxes will reduce absolute latency for both ORMs but the *ratio* between them stays similar - this benchmark stresses the ORM/wire path, not raw CPU/IO.
+
+12 scenarios cover:
+
+| # | Scenario | What it tests |
+|---|---|---|
+| 1 | simple-lookup | PK lookup |
+| 2 | relations | post + author + comments + categories |
+| 3 | pagination | offset pagination + count |
+| 4 | fulltext | tsvector search |
+| 5 | n-plus-1 | naive loop vs batched window fn |
+| 6 | bulk-insert | 20-row INSERT |
+| 7 | deep-nested | 3-level eager load |
+| 8 | raw-aggregation | GROUP BY |
+| 9 | cursor | keyset pagination |
+| 10 | complex-filter | OR + range + EXISTS |
+| 11 | delete | bulk DELETE WHERE |
+| 12 | transaction | atomic multi-write |
+
+## Round 1: the pagination shocker
+
+First run, naive code on both sides. Prisma's pagination scenario was **4x slower** than TypeORM. p95 of 12.5 seconds vs 3 seconds. I expected a small gap, not a chasm.
+
+I enabled `pg_stat_statements` and looked at what Prisma was actually sending:
+
+```sql
+SELECT post.*, COALESCE("aggr_selection_0_Comment"."_aggr_count_comments", 0)
+FROM "Post"
+LEFT JOIN (
+  SELECT "Comment"."postId", COUNT(*) AS "_aggr_count_comments"
+  FROM "Comment" WHERE $4=$5  -- no-op constant filter
+  GROUP BY "Comment"."postId"
+) "aggr_selection_0_Comment" ON ...
+ORDER BY "createdAt" DESC LIMIT 50 OFFSET ?
+```
+
+The `_count: { select: { comments: true } }` field in Prisma's `include` triggers a **full GROUP BY over the entire `Comment` table** (500k rows) on **every paginated request**. The 50 posts on the page don't matter — Prisma aggregates everything, joins it, then throws 99.99% of the result away.
+
+TypeORM's equivalent (`loadRelationCountAndMap`) runs a separate batched count keyed by the 50 page identifiers (IDs). ~85ms vs Prisma's 1500ms+ on the aggregation step alone.
+
+**Caveat #1**: never use Prisma's `_count` in `include` on hot paths. Replace it with a separate count query keyed to the page IDs:
+
+```ts
+const posts = await prisma.post.findMany({ skip, take, orderBy, include: { author: true } });
+const counts = await prisma.$queryRawUnsafe<{ postId: number; n: bigint }[]>(
+  `SELECT "postId", COUNT(*)::bigint AS n FROM "Comment" WHERE "postId" = ANY($1::int[]) GROUP BY "postId"`,
+  posts.map(p => p.id),
+);
+const byPost = new Map(counts.map(c => [c.postId, Number(c.n)]));
+return posts.map(p => ({ ...p, commentsCount: byPost.get(p.id) ?? 0 }));
+```
+
+After this fix, pagination dropped from 12.5s to ~990ms p95 — tied with TypeORM.
+
+## Round 2: the JOIN-heavy gap
+
+With pagination fixed, the next big gap was on relation-heavy scenarios:
+
+- `relations` (post + author + comments + categories): Prisma 713ms vs TypeORM 325ms - **2.2x slower**
+- `deep-nested` (Category → Post → User → Comment): Prisma 423ms vs TypeORM 202ms - **2.1x slower**
+- `n-plus-1` (the classic N+1 query problem — user feed with last-3 comments per post fetched in a loop): Prisma 338ms vs TypeORM 96ms - **3.5x slower**
+
+`pg_stat_statements` showed Prisma issuing 3 separate queries for `relations`, even though the `relationJoins` preview feature was enabled in `schema.prisma`:
+
+```sql
+-- 3 round-trips
+SELECT * FROM "Post" WHERE id=$1 LIMIT 1;
+SELECT * FROM "Comment" WHERE "postId"=$1 ORDER BY ... LIMIT 20;
+SELECT * FROM "Category" INNER JOIN "_PostCategories" ON ... WHERE B=$1;
+```
+
+TypeORM emits **one query** with all LEFT JOINs - one round-trip.
+
+**Caveat #2**: `relationJoins` in `previewFeatures` is **opt-in per query**. Default `relationLoadStrategy` is still `'query'` (separate queries). You have to add `relationLoadStrategy: 'join'` to every call you want optimized:
+
+```ts
+this.prisma.post.findUnique({
+  where: { id },
+  include: { author: true, comments: { ... }, categories: true },
+  relationLoadStrategy: 'join',  // <-- without this, 3 round-trips
+});
+```
+
+For `n-plus-1`, the fix is even more direct: replace the loop with a window-function query (same thing TypeORM does):
+
+```ts
+const rows = await prisma.$queryRawUnsafe(
+  `SELECT * FROM (
+     SELECT c.*, ROW_NUMBER() OVER (PARTITION BY c."postId" ORDER BY c."createdAt" DESC) rn
+     FROM "Comment" c WHERE c."postId" = ANY($1::int[])
+   ) t WHERE rn <= 3`,
+  postIds,
+);
+```
+
+After these patches, `relations` went from 713 → 307ms, `n-plus-1` from 338 → 116ms.
+
+### Why "single JOIN vs N+1" matters: RTT × N
+
+The reason TypeORM wins JOIN-heavy scenarios at sub-millisecond-RTT isn't the query engine — it's just that **N round-trips of even 0.1ms each beat one JOIN with a 200-row cartesian product**. RTT dominates when query execution time is small.
+
+Inverse: when rows are wide (long bodies, many joined relations), the cartesian explosion of TypeORM's mega-JOIN can outweigh N round-trips. On Railway (~1-5ms internal RTT) we saw the round-trip side dominate.
+
+## Round 3: SQL quirks
+
+After the structural fixes, I dug into the actual SQL Prisma emits character-by-character. Several quirks add up on hot paths:
+
+**Quirk #1: `findUnique` adds `LIMIT $2 OFFSET $3` instead of inline `LIMIT 1`.**
+
+```sql
+-- Prisma findUnique({ where: { id } })
+SELECT * FROM "User" WHERE "id"=$1 AND $4=$5 LIMIT $2 OFFSET $3
+-- TypeORM findOne({ where: { id } })
+SELECT * FROM "User" WHERE "id"=$1 LIMIT 2
+```
+
+Prisma binds the LIMIT/OFFSET as parameters, which prevents PostgreSQL (PG) from picking the unique-index fast path. **Fix**: use `findFirst` instead of `findUnique` when you don't need uniqueness validation.
+
+**Quirk #2: cursor pagination wraps in a subquery.**
+
+```sql
+-- Prisma cursor: { id: $1 }, skip: 1
+SELECT * FROM "Post"
+WHERE "id" <= (SELECT "id" FROM "Post" WHERE ("id") = ($1))
+ORDER BY "id" DESC LIMIT $2 OFFSET $3
+-- TypeORM where('p.id < :cursor')
+SELECT * FROM "Post" WHERE "id" < $1 ORDER BY "id" DESC LIMIT $2
+```
+
+Prisma's `cursor:` API wraps your cursor value in a subquery to convert from "starts at this row" to a comparable predicate. PG runs an extra index lookup per request. **Fix**: don't use the `cursor:` API. Use `where: { id: { lt: cursor } }` directly.
+
+**Quirk #3: tautologies in `WHERE`.**
+
+`AND $4=$5` appears in many Prisma WHERE clauses. The query engine emits these as no-ops to keep the parameter count consistent across optional fields. PG's planner ignores them, but it does parse + plan around them.
+
+**Quirk #4: `LIKE` casts to text.**
+
+```sql
+-- Prisma deleteMany({ where: { title: { startsWith: $stamp } } })
+DELETE FROM "Post" WHERE "title"::text LIKE ($2 || $3)
+```
+
+The explicit `::text` cast and string concatenation prevent the planner from using a `text_pattern_ops` index. **Fix**: there isn't one in the public API; either accept it or drop to raw SQL for hot DELETE paths.
+
+After applying the `findFirst` and `where: { id: { lt } }` fixes, the cursor scenario dropped from 469 → 549ms (didn't help much because the dataset is small; the subquery cost is index-lookup not seq-scan), but simple-lookup variance shrank.
+
+## Final results
+
+12 scenarios, RUNS=1, all fair-ish patches applied (relationLoadStrategy, window-fn n+1, batched count, findFirst, direct cursor):
+
+![p95 latency by scenario](https://quickchart.io/chart?width=900&height=500&c=%7Btype%3A%27bar%27%2Cdata%3A%7Blabels%3A%5B%27simple-lookup%27%2C%27relations%27%2C%27pagination%27%2C%27n%2B1%27%2C%27bulk-insert%27%2C%27deep-nested%27%2C%27cursor%27%2C%27delete%27%2C%27transaction%27%5D%2Cdatasets%3A%5B%7Blabel%3A%27Prisma%27%2Cdata%3A%5B216%2C314%2C302%2C154%2C67%2C148%2C549%2C396%2C212%5D%2CbackgroundColor%3A%27%235a67d8%27%7D%2C%7Blabel%3A%27TypeORM%27%2Cdata%3A%5B137%2C195%2C599%2C184%2C18%2C122%2C315%2C81%2C124%5D%2CbackgroundColor%3A%27%23ed8936%27%7D%5D%7D%2Coptions%3A%7Btitle%3A%7Bdisplay%3Atrue%2Ctext%3A%27p95%20latency%20%28ms%29%20%E2%80%94%20fast%20scenarios%27%7D%7D%7D)
+
+![p95 latency slow](https://quickchart.io/chart?width=900&height=400&c=%7Btype%3A%27bar%27%2Cdata%3A%7Blabels%3A%5B%27fulltext%27%2C%27raw-aggregation%27%2C%27complex-filter%27%5D%2Cdatasets%3A%5B%7Blabel%3A%27Prisma%27%2Cdata%3A%5B8537%2C7004%2C27072%5D%2CbackgroundColor%3A%27%235a67d8%27%7D%2C%7Blabel%3A%27TypeORM%27%2Cdata%3A%5B8582%2C18903%2C50168%5D%2CbackgroundColor%3A%27%23ed8936%27%7D%5D%7D%2Coptions%3A%7Btitle%3A%7Bdisplay%3Atrue%2Ctext%3A%27p95%20latency%20%28ms%29%20%E2%80%94%20heavy%20scans%27%7D%7D%7D)
+
+![Requests per second](https://quickchart.io/chart?width=900&height=500&c=%7Btype%3A%27bar%27%2Cdata%3A%7Blabels%3A%5B%27simple-lookup%27%2C%27relations%27%2C%27pagination%27%2C%27n%2B1%27%2C%27bulk-insert%27%2C%27deep-nested%27%2C%27cursor%27%2C%27delete%27%2C%27transaction%27%5D%2Cdatasets%3A%5B%7Blabel%3A%27Prisma%27%2Cdata%3A%5B2072%2C1222%2C1321%2C609%2C186%2C1322%2C841%2C229%2C380%5D%2CbackgroundColor%3A%27%235a67d8%27%7D%2C%7Blabel%3A%27TypeORM%27%2Cdata%3A%5B3224%2C2338%2C740%2C460%2C589%2C1507%2C1524%2C985%2C657%5D%2CbackgroundColor%3A%27%23ed8936%27%7D%5D%7D%2Coptions%3A%7Btitle%3A%7Bdisplay%3Atrue%2Ctext%3A%27Requests%20per%20second%20%28higher%20%3D%20better%29%27%7D%7D%7D)
+
+![Peak RSS memory](https://quickchart.io/chart?width=900&height=500&c=%7Btype%3A%27bar%27%2Cdata%3A%7Blabels%3A%5B%27simple-lookup%27%2C%27relations%27%2C%27pagination%27%2C%27deep-nested%27%2C%27cursor%27%2C%27complex-filter%27%2C%27transaction%27%5D%2Cdatasets%3A%5B%7Blabel%3A%27Prisma%27%2Cdata%3A%5B256%2C774%2C768%2C782%2C356%2C151%2C300%5D%2CbackgroundColor%3A%27%235a67d8%27%7D%2C%7Blabel%3A%27TypeORM%27%2Cdata%3A%5B241%2C346%2C350%2C323%2C340%2C108%2C230%5D%2CbackgroundColor%3A%27%23ed8936%27%7D%5D%7D%2Coptions%3A%7Btitle%3A%7Bdisplay%3Atrue%2Ctext%3A%27Peak%20RSS%20memory%20%28MB%29%20%E2%80%94%20lower%20%3D%20better%27%7D%7D%7D)
+
+| Scenario | Prisma p95 | TypeORM p95 | Prisma RSS | TypeORM RSS | Winner |
+|---|---:|---:|---:|---:|---|
+| simple-lookup | 216ms | 137ms | 256 MB | 241 MB | TypeORM |
+| relations | 314ms | 195ms | 774 MB | 346 MB | TypeORM |
+| pagination | 302ms | 599ms | 768 MB | 350 MB | **Prisma** |
+| fulltext | 8537ms | 8582ms | 126 MB | 111 MB | tie (raw SQL) |
+| n+1 | 154ms | 184ms | 305 MB | 213 MB | **Prisma** |
+| bulk-insert | 67ms | 18ms | 283 MB | 225 MB | TypeORM 3.7x |
+| deep-nested | 148ms | 122ms | 782 MB | 323 MB | TypeORM |
+| raw-aggregation | 7004ms | 18903ms | 157 MB | 109 MB | **Prisma 2.7x** |
+| cursor | 549ms | 315ms | 356 MB | 340 MB | TypeORM |
+| complex-filter | 27072ms | 50168ms | 151 MB | 108 MB | **Prisma 1.9x** |
+| delete | 396ms | 81ms | 241 MB | 210 MB | TypeORM 4.9x |
+| transaction | 212ms | 124ms | 300 MB | 230 MB | TypeORM |
+
+**TypeORM wins 8, Prisma wins 3, 1 tie.** But the score isn't the interesting part.
+
+## Why Prisma uses 2-3x more memory
+
+This was the surprise. On JOIN-heavy paths, Prisma's peak RSS hit **774-782 MB** vs TypeORM's **323-346 MB**. Same data, same logical operation. Why?
+
+1. **Generated client size.** Prisma codegens model classes with method overloads for every variation (`findUnique`, `findFirst`, `findMany`, `aggregate`, `groupBy`, etc. × every relation × every type combination). Bundle is ~5-10 megabytes of JavaScript (JS) loaded into the V8 heap. TypeORM has runtime metadata + entity classes — much smaller resident set.
+
+2. **Query engine layer.** Prisma 7 with `adapter-pg` removed the Rust binary, but the JS query engine that builds an Abstract Syntax Tree (AST) → SQL → executes → re-hydrates is still there. AST objects + intermediate query state are held in heap during every request.
+
+3. **Result hydration.** Prisma converts every row through generated type validators, allocating new objects with prototypes per model. TypeORM uses the entity classes that the `pg` driver fills directly — fewer allocations.
+
+4. **`relationLoadStrategy: 'join'` cartesian buffering.** When you opt into JOIN strategy, the raw cartesian rows arrive (post × categories × comments × commentAuthor = hundreds of duplicate rows per single post lookup), get buffered in JS arrays, then deduplicated into nested structures. Peak heap = full cartesian materialized at once.
+
+5. **No streaming.** `findMany` always fully materializes the result set into a JS array before resolving the promise. 100k rows × 1 KB each = 100 MB in heap at peak, even if you only iterate once and throw it away. TypeORM offers `qb.stream()` (Node.js Readable, backpressure-aware) and `qb.iterate()` (async iterator), so you can pipe rows from Postgres → HTTP response one at a time and keep memory flat regardless of dataset size. Prisma's only escape hatch is manual chunked pagination (`take`/`skip` loop) or dropping to `pg`'s native `Cursor` via `$queryRawUnsafe`. If you ever need to export a CSV bigger than RAM, this matters a lot.
+
+## Why Prisma is slower (the actual reasons)
+
+Forget the "Rust binary Inter-Process Communication (IPC)" narrative — Prisma 7's adapter-pg path is pure JS now. The slowness comes from the **emitted SQL itself**:
+
+1. **`AND $4=$5` no-op tautologies** — query engine emits these for null/optional handling. PG plans around them.
+2. **Wrapper subqueries** — `WHERE id <= (SELECT id WHERE id=$1)` instead of `WHERE id < $1`. Extra index lookup.
+3. **`LIMIT $2 OFFSET $3` on findUnique** — prevents PG's unique-index fast path.
+4. **`title::text LIKE ($2||$3)`** — explicit cast + concat, kills `text_pattern_ops` index.
+5. **Multi-query loading by default** — `relationLoadStrategy: 'query'` causes 3 round-trips for one `findUnique` with `include`.
+
+The Rust engine bashing is mostly outdated. The current bottleneck is Prisma's SQL generator emitting safe-but-suboptimal SQL.
+
+## Top 5 Prisma performance killers
+
+1. **`include: { _count }` on hot paths** — generates a full GROUP BY of the related table, every request. Replace with batched count.
+2. **`include` without `relationLoadStrategy: 'join'`** — N+1 round-trips disguised as one ORM call.
+3. **`findUnique` everywhere** — emits `LIMIT $/OFFSET $`. Use `findFirst` unless you need the prisma-side uniqueness check.
+4. **Deep `select` with relations on lists** — cartesian buffering blows up heap. Use a separate query per relation when N is large.
+5. **`cursor: { id }` keyset pagination** — wraps in a subquery. Use `where: { id: { lt: cursor } }` directly.
+
+## TypeORM caveats too
+
+It's not all rosy on the TypeORM side:
+
+1. **`loadRelationCountAndMap` runs a separate query.** Fine for one page, but at high RPS the extra round-trip adds up. Pagination with count is double the wire traffic vs without.
+2. **Pagination emits `SELECT DISTINCT`** when there's a `take` + JOIN. Why? Because `leftJoinAndSelect` could duplicate root rows from one-to-many joins. PG has to sort to dedupe.
+3. **`leftJoinAndSelect` cartesian explosion.** Same problem as Prisma's `relationLoadStrategy: 'join'` — wide result sets when fan-outs are large. TypeORM is just faster at deduping client-side.
+4. **`createQueryBuilder` is verbose.** Type safety is weaker than Prisma. Easy to typo a column name and only find out at runtime.
+5. **No connection pool tuning by default.** You set `max` but it doesn't expose `min`, `idleTimeoutMillis`, `connectionTimeoutMillis` cleanly. Have to drop to `extra: {}`.
+6. **Decorator-based entities = no tree-shaking.** Every entity gets imported globally.
+7. **TypeORM is in maintenance mode.** Last meaningful release was a while ago. Roadmap is unclear.
+
+## Project health: GitHub at a glance
+
+Numbers as of May 2026:
+
+| Metric | Prisma | TypeORM |
+|---|---:|---:|
+| Stars | 45,872 | 36,464 |
+| Forks | 2,182 | 6,511 |
+| Open issues | **2,431** | 417 |
+| Open pull requests (PRs) | 139 | 106 |
+| Latest release | 7.8.0 (Apr 22, 2026) | 0.3.28 (Dec 3, 2025) |
+| Last commit | Apr 29, 2026 | Apr 27, 2026 |
+
+Both repos are still committed-to. The interesting numbers:
+
+- **Prisma has ~6x more open issues** (2,431 vs 417). Partly more users (10k more stars), partly slower triage. The Prisma issue tracker is famously a graveyard - bugs sit for years, especially around the query engine and adapter ecosystem. Search for "Prisma slow" on GitHub and you'll find threads from 2022 still discussing the same things this post hits on.
+- **TypeORM has 6,511 forks vs Prisma's 2,182.** Three times more. People fork TypeORM because they need to patch it themselves - the upstream pace doesn't keep up with bug reports. The 417 open-issue count is misleadingly low: TypeORM aggressively closes "won't-fix" / "no-repro" / "needs more info" reports.
+- **TypeORM's last release was 5 months ago** (0.3.28 in December 2025). Releases are infrequent and small. The project is in *de facto* maintenance mode - patches land, but big architectural work doesn't.
+- **Prisma ships every 1-2 weeks.** 7.x line is on minor 8 already. Active development, breaking changes happen, you have to keep up.
+
+What this means for picking one in 2026:
+
+- If you pick **Prisma**, you're betting on momentum - they're shipping, they're funded (Prisma Inc), and the ecosystem is growing. You're also accepting that any bug you hit may already be filed and untriaged for 18 months.
+- If you pick **TypeORM**, you're betting on stability - the API isn't changing, but neither is anything else. If a bug bites you, your fork might land before upstream merges.
+- The forks-to-stars ratio (TypeORM 18% vs Prisma 5%) tells you something: TypeORM users patch and ship; Prisma users wait and complain. Pick whichever model you can live with.
+
+Honest take: neither is a great place to be in 2026. **Drizzle** has 25k stars and a much smaller, more responsive maintainer team. **Kysely** has 11k stars and ships type-safe SQL without an ORM layer at all. The query-builder + raw-SQL combo is winning the new-project market for a reason.
+
+## The optimization checklist (Prisma without raw SQL)
+
+If you're stuck with Prisma and can't drop to raw queries:
+
+1. ✅ `relationLoadStrategy: 'join'` on every `findUnique`/`findMany` with `include`.
+2. ✅ Replace `_count` with a separate batched count query.
+3. ✅ `findFirst` instead of `findUnique` when you don't need the uniqueness check.
+4. ✅ Direct `where: { id: { lt } }` instead of `cursor:` API.
+5. ✅ `select` whitelist instead of `include` of full objects — cuts payload + heap.
+6. ✅ Composite indexes covering `WHERE` + `ORDER BY`: `@@index([authorId, createdAt(sort: Desc)])`.
+7. ✅ Array form `prisma.$transaction([...])` for independent writes — single round-trip.
+8. ✅ `previewFeatures = ["nativeDistinct", "partialIndexes"]` for less app-side work.
+9. ✅ Connection pool sized to actual concurrency: `?connection_limit=N` in `DATABASE_URL`.
+10. ✅ DataLoader-style batching for repeated `findUnique` calls in a single request.
+11. ✅ Raw SQL via `$queryRawUnsafe` for hot aggregations and window functions. Yes, you give up types, but the ORM was never going to emit `ROW_NUMBER() OVER` for you anyway.
+
+## Verdict
+
+Use **Prisma** if:
+- Your dataset is small or DB-bound work dominates RTT (cloud DB across regions, cold lambdas).
+- You value type safety more than ms.
+- You're fine paying 2-3x heap on JOIN-heavy paths.
+- You can do the patches above without crying.
+
+Use **TypeORM** if:
+- You want closer-to-the-metal SQL with less generated junk.
+- Your hot path has many small queries (RTT dominates).
+- You're memory-constrained (serverless with 512MB limit, etc).
+- You're OK with weaker type safety and a slowing-down maintenance pace.
+
+Use **neither** (pick Drizzle / Kysely) if:
+- You want both type safety **and** thin SQL.
+- You don't mind writing query-builder Domain-Specific Language (DSL) by hand.
+- You're starting a new project in 2026.
+
+The interesting takeaway from this whole exercise isn't which ORM "won" — it's that **Prisma's reputation for being slow is real but fixable**. Most of the gap comes from defaults that are wrong for production workloads. With 4 patches (relationLoadStrategy, drop _count, findFirst, direct cursor), Prisma is within 30-50% of TypeORM on most scenarios — close enough that the type-safety win pays for itself.
+
+Memory is the harder problem. There's no flag for that. If you're running on a 256 megabyte serverless function and loading lists with relations, Prisma will trigger Out-Of-Memory (OOM) kills. Plan accordingly.
