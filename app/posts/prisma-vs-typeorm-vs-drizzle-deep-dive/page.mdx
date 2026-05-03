@@ -1,0 +1,512 @@
+import { generateBlogPostingSchema } from "@/lib/schemas";
+
+export const metadata = {
+	title:
+		"Prisma vs TypeORM vs Drizzle: a fair benchmark, every caveat, every footgun",
+	description:
+		"I ran 12 scenarios on Railway against all three ORMs, dug into pg_stat_statements, fixed the unfair bits, and measured exactly which one wins each scenario, why, and what it costs in memory.",
+	openGraph: { type: "article" },
+	twitter: { card: "summary_large_image" },
+	other: {
+		"script:ld+json": JSON.stringify(
+			generateBlogPostingSchema({
+				title:
+					"Prisma vs TypeORM vs Drizzle: a fair benchmark, every caveat, every footgun",
+				description:
+					"I ran 12 scenarios on Railway against all three ORMs, dug into pg_stat_statements, fixed the unfair bits, and measured exactly which one wins each scenario, why, and what it costs in memory.",
+				slug: "prisma-vs-typeorm-vs-drizzle-deep-dive",
+				datePublished: "2026-05-03T00:00:00Z",
+				tags: ["Prisma", "TypeORM", "Drizzle", "PostgreSQL", "Benchmark", "Performance"],
+			})
+		),
+	},
+};
+
+# Prisma vs TypeORM vs Drizzle: a fair benchmark, every caveat, every footgun
+
+Every "Prisma vs X" benchmark online suffers from one of two problems: the author tested the Object-Relational Mappers (ORMs) doing different work (one fetches a count, the other doesn't), or they ran on a laptop that thermal-throttled mid-run. I wanted to know, with everything actually equal: which ORM is faster, by how much, and **why**?
+
+The thing that pushed me to actually run my own bench was [TypeORM vs Prisma — Same Schema, Different Performance Profile](https://blog.gopenai.com/typeorm-vs-prisma-same-schema-different-performance-profile-3c57c3b07219). It's a decent read, but the methodology has the usual problems: ran on a developer laptop, single ORM-vs-ORM scenario per query, no `pg_stat_statements` to verify what SQL was actually emitted, and the conclusions glossed over whether the two ORMs were doing the same logical work. I wanted apples-to-apples — same Postgres, same network, same payload, scenarios run alternately, with the actual emitted SQL verified.
+
+Prisma's own team also published [Performance Benchmarks: Comparing Query Latency across TypeScript ORMs & Databases](https://www.prisma.io/blog/performance-benchmarks-comparing-query-latency-across-typescript-orms-and-databases), which is a more honest take from the obvious-conflict-of-interest party. They tested Prisma vs TypeORM vs Drizzle across RDS / Supabase / Neon, 14 queries × 500 sequential reps × 1k-row dataset, executed from a single EC2 instance. Their conclusion: "it depends, mostly similar ballparks." Worth reading, but the gaps that interest me aren't covered by their setup:
+
+- 1k records is tiny — real perf characteristics (cache misses, index scans, planner choices) only kick in at 10-100k rows.
+- 500 sequential reps measure single-thread latency, not behavior under concurrency. ORMs with worse connection-pool ergonomics (or query engine contention) only fall apart with 100+ Virtual Users hitting at once.
+- Median only, no p95/p99. Tail latency is where the interesting differences live.
+- No memory tracking. Spoiler from this post: that's where Prisma loses hardest.
+- No transactions, complex filters, or N+1 trap scenarios.
+
+So this post is the version I wished existed: 12 scenarios including the stress cases, p95 + p99 + memory captured, real concurrency (500 VUs), real network latency, three ORMs side-by-side, and a verified SQL trail via `pg_stat_statements`.
+
+**Spoiler — final tally**:
+
+- **TypeORM** wins **7/12** scenarios on p95 latency. The "boring `leftJoinAndSelect` + cartesian dedup app-side" approach beats both fancy alternatives when the network is fast.
+- **Prisma** is fastest on **2/12** outright (pagination, n+1) — entirely thanks to the patches in this post — and **least-worst on `complex-filter`** (35.9s vs TypeORM's 60s and Drizzle's 53s, though all three are catastrophic on that scenario).
+- **Drizzle** wins **2/12** (fulltext, raw-aggregation), and is the **memory champion in 8/12 scenarios**. But its relational query API (`LEFT JOIN LATERAL` + `json_agg`) is **noticeably slower than TypeORM's flat JOINs at high concurrency** — the surprise of the bench.
+- One scenario (`fulltext`) is effectively a **three-way tie** — all three within 10% of each other on identical raw SQL.
+
+If you came here looking for "which ORM is fastest" — none of them, all the time. If you came for "what does each one cost you in real numbers and why," read on.
+
+This post is the journey: setup, what I found, what I had to fix to make Prisma fair, and the concrete optimizations you can apply today. Prisma needs the most repair work — it gets the longest "rounds" treatment. TypeORM and Drizzle have caveats too, called out in their own sections later (["TypeORM caveats too"](#typeorm-caveats-too), ["Drizzle caveats too"](#drizzle-caveats-too)).
+
+**Source code + raw bench data**: [github.com/zaxovaiko/prisma-typeorm-drizzle-benchmark](https://github.com/zaxovaiko/prisma-typeorm-drizzle-benchmark) — clone, point at your own Postgres, reproduce.
+
+## Caveats and limitations
+
+Read the numbers with these in mind:
+
+- **`RUNS=1`.** Every scenario was run once for 100 seconds with a 0→500-VU ramp. That's enough samples for stable p95s on the busy scenarios (thousands of requests), but the small ones (`fulltext`, `raw-aggregation`, `complex-filter` — only ~10 RPS) collected ~1k samples each, so their p95 has visible run-to-run noise. Treat sub-10% gaps in those rows as ties.
+- **Single-instance Postgres.** No replicas, no PgBouncer, no connection pool in front. Real production setups change the picture, especially under heavier write workloads.
+- **Hobby-tier shared CPU.** Bigger boxes will reduce absolute latency but the ORM ratios should hold — this bench stresses the ORM/wire path, not raw IO.
+- **20k posts / 100k comments is "medium."** At 1M+ rows, `LATERAL`+`json_agg` may scale *better* (Drizzle's avoidance of cartesian explosion matters more) and `leftJoinAndSelect` may scale *worse* (cartesian gets exponentially uglier). Numbers here describe medium datasets — your mileage will vary at the extremes.
+- **Latency is the response from API → k6.** Not pure SQL execution; includes ORM CPU, JSON serialization, NestJS request lifecycle. That's by design (it's what your users feel) but means raw "how fast is this ORM" comparisons aren't isolated.
+- **One outlier I haven't fully explained.** TypeORM's `raw-aggregation` p95 is **3x slower** than Prisma's and Drizzle's despite identical raw SQL. Probably a connection-pool contention edge case under that specific scenario's load shape. I'd want a 5x re-run to confirm before drawing a firm conclusion. Treat as suspect.
+
+## Table of contents
+
+- [Caveats and limitations](#caveats-and-limitations)
+- [Setup](#setup)
+- [Round 1: the pagination shocker (Prisma only)](#round-1-the-pagination-shocker-prisma-only)
+- [Round 2: the JOIN-heavy gap (Prisma only)](#round-2-the-join-heavy-gap-prisma-only)
+- [Round 3: SQL quirks (Prisma only)](#round-3-sql-quirks-prisma-only)
+- [How Drizzle handles each round without a fix](#how-drizzle-handles-each-round-without-a-fix)
+- [Final results](#final-results)
+- [Why Drizzle's relational API is slower than expected](#why-drizzles-relational-api-is-slower-than-expected)
+- [Why Prisma uses 2-3x more memory](#why-prisma-uses-2-3x-more-memory)
+- [Why Prisma is slower (the actual reasons)](#why-prisma-is-slower-the-actual-reasons)
+- [Top 5 Prisma performance killers](#top-5-prisma-performance-killers)
+- [TypeORM caveats too](#typeorm-caveats-too)
+- [Drizzle caveats too](#drizzle-caveats-too)
+- [Project health: GitHub at a glance](#project-health-github-at-a-glance)
+- [The optimization checklist (Prisma without raw SQL)](#the-optimization-checklist-prisma-without-raw-sql)
+- [Verdict](#verdict)
+
+## Setup
+
+- All three Application Programming Interfaces (APIs) are NestJS 11, identical routes, deployed to **Railway** (so my laptop battery doesn't influence the numbers).
+- Same PostgreSQL 18 instance with three databases (`bench_prisma`, `bench_typeorm`, `bench_drizzle`), seeded byte-for-byte identically via raw SQL: 2k users, 20k posts, 100k comments, 50 categories.
+- Load generator: **k6** running inside Railway's private network (sub-millisecond Round-Trip Time, abbreviated RTT, to the APIs). Scenarios ramp 0 → 500 Virtual Users (VUs) over 100s.
+- Results stored in a separate `bench_runs` table on the same PostgreSQL. `pg_stat_statements` enabled on all three databases to capture actual emitted SQL.
+- Metrics captured: `avg`, `p50`/`p95`/`p99` (the 50th/95th/99th percentile latency), `rps` (requests per second), `fail_pct`, plus **peak RSS** (Resident Set Size — total memory the process holds in RAM; polled `/metrics` endpoint exposing `process.memoryUsage()` every 2s).
+
+### Hardware / hosting specs
+
+| Resource | Spec |
+|---|---|
+| Region | `europe-west4-drams3a` (all services pinned, sub-ms private network) |
+| Plan | Railway Hobby ($5/seat) — 8 vCPU / 8 GB RAM cap per service, shared CPU |
+| API runtime | Node.js 24 (Alpine) on Railway's container builder, 1 replica each |
+| PostgreSQL | `ghcr.io/railwayapp-templates/postgres-ssl:18`, single instance, 5 GB volume |
+| k6 runner | Alpine + k6 + jq + psql, one-shot job, same private network |
+
+### ORM versions
+
+| ORM | Library | API style used |
+|---|---|---|
+| Prisma | `prisma@7.x` + `@prisma/adapter-pg` | `findMany`/`findUnique` with `include` (+ `relationLoadStrategy: 'join'` after Round 2) |
+| TypeORM | `typeorm@0.3.28` | `createQueryBuilder` with `leftJoinAndSelect` |
+| Drizzle | `drizzle-orm@0.44` + `pg` | Relational query API: `db.query.posts.findMany({ with: { ... } })` |
+
+I deliberately did **not** scale up. Hobby-tier shared CPU with 8 GB RAM is what most people running a side project or a small SaaS on Railway will actually have. Bigger boxes will reduce absolute latency for all three ORMs but the *ratio* between them stays similar — this benchmark stresses the ORM/wire path, not raw CPU/IO.
+
+12 scenarios cover:
+
+| # | Scenario | What it tests |
+|---|---|---|
+| 1 | simple-lookup | PK lookup |
+| 2 | relations | post + author + comments + categories |
+| 3 | pagination | offset pagination + count |
+| 4 | fulltext | tsvector search |
+| 5 | n-plus-1 | naive loop vs batched window fn |
+| 6 | bulk-insert | 20-row INSERT |
+| 7 | deep-nested | 3-level eager load |
+| 8 | raw-aggregation | GROUP BY |
+| 9 | cursor | keyset pagination |
+| 10 | complex-filter | OR + range + EXISTS |
+| 11 | delete | bulk DELETE WHERE |
+| 12 | transaction | atomic multi-write |
+
+## Round 1: the pagination shocker (Prisma only)
+
+First run, naive code on all three sides. **TypeORM and Drizzle were tight; Prisma's pagination scenario was 4x slower.** p95 of 12.5 seconds vs ~3 seconds. I expected a small gap, not a chasm.
+
+I enabled `pg_stat_statements` and looked at what Prisma was actually sending:
+
+```sql
+SELECT post.*, COALESCE("aggr_selection_0_Comment"."_aggr_count_comments", 0)
+FROM "Post"
+LEFT JOIN (
+  SELECT "Comment"."postId", COUNT(*) AS "_aggr_count_comments"
+  FROM "Comment" WHERE $4=$5  -- no-op constant filter
+  GROUP BY "Comment"."postId"
+) "aggr_selection_0_Comment" ON ...
+ORDER BY "createdAt" DESC LIMIT 50 OFFSET ?
+```
+
+The `_count: { select: { comments: true } }` field in Prisma's `include` triggers a **full GROUP BY over the entire `Comment` table** (100k rows in our seed) on **every paginated request**. The 50 posts on the page don't matter — Prisma aggregates everything, joins it, then throws 99.99% of the result away.
+
+TypeORM's equivalent (`loadRelationCountAndMap`) runs a separate batched count keyed by the 50 page identifiers (IDs). Drizzle does not have a built-in count-of-relation helper, so I wrote it explicitly as a second batched query — same shape as TypeORM's. Both finish in ~80ms vs Prisma's 1500ms+ on the aggregation step alone.
+
+**Caveat #1**: never use Prisma's `_count` in `include` on hot paths. Replace it with a separate count query keyed to the page IDs:
+
+```ts
+const posts = await prisma.post.findMany({ skip, take, orderBy, include: { author: true } });
+const counts = await prisma.$queryRawUnsafe<{ postId: number; n: bigint }[]>(
+  `SELECT "postId", COUNT(*)::bigint AS n FROM "Comment" WHERE "postId" = ANY($1::int[]) GROUP BY "postId"`,
+  posts.map(p => p.id),
+);
+const byPost = new Map(counts.map(c => [c.postId, Number(c.n)]));
+return posts.map(p => ({ ...p, commentsCount: byPost.get(p.id) ?? 0 }));
+```
+
+After this fix, Prisma's pagination dropped from 12.5s to **331ms p95** — actually the **best of all three** in the final run. (TypeORM 608ms, Drizzle 1331ms.)
+
+## Round 2: the JOIN-heavy gap (Prisma only)
+
+With pagination fixed, the next big gap was on relation-heavy scenarios. **TypeORM's flat `leftJoinAndSelect` was the fastest by a clear margin.** `pg_stat_statements` showed Prisma issuing 3 separate queries for `relations`, even though the `relationJoins` preview feature was enabled in `schema.prisma`:
+
+```sql
+-- 3 round-trips
+SELECT * FROM "Post" WHERE id=$1 LIMIT 1;
+SELECT * FROM "Comment" WHERE "postId"=$1 ORDER BY ... LIMIT 20;
+SELECT * FROM "Category" INNER JOIN "_PostCategories" ON ... WHERE B=$1;
+```
+
+TypeORM emits one query with all `LEFT JOIN`s. Drizzle's relational API emits one query with `LATERAL` subqueries that build nested `json_agg` results — **structurally cleaner SQL, but as the final numbers show, slower than TypeORM at high concurrency**. More on that below.
+
+**Caveat #2**: `relationJoins` in `previewFeatures` is **opt-in per query**. Default `relationLoadStrategy` is still `'query'` (separate queries). You have to add `relationLoadStrategy: 'join'` to every call you want optimized:
+
+```ts
+this.prisma.post.findUnique({
+  where: { id },
+  include: { author: true, comments: { ... }, categories: true },
+  relationLoadStrategy: 'join',  // <-- without this, 3 round-trips
+});
+```
+
+For `n-plus-1`, the fix is even more direct: replace the loop with a window-function query:
+
+```ts
+const rows = await prisma.$queryRawUnsafe(
+  `SELECT * FROM (
+     SELECT c.*, ROW_NUMBER() OVER (PARTITION BY c."postId" ORDER BY c."createdAt" DESC) rn
+     FROM "Comment" c WHERE c."postId" = ANY($1::int[])
+   ) t WHERE rn <= 3`,
+  postIds,
+);
+```
+
+After these patches, Prisma's `relations` scenario (final) lands at 301ms p95 vs TypeORM's 200ms — much closer than before but not equal.
+
+### Why "single JOIN vs N+1" matters: RTT × N
+
+The reason TypeORM wins JOIN-heavy scenarios at sub-millisecond-RTT isn't the query engine — it's just that **N round-trips of even 0.1ms each beat one JOIN with a 200-row cartesian product**. RTT dominates when query execution time is small.
+
+Inverse: when rows are wide (long bodies, many joined relations), the cartesian explosion of the mega-JOIN can outweigh N round-trips. Drizzle bets on `LATERAL`+`json_agg` to side-step the cartesian — clever in theory, expensive in practice (see results below).
+
+## Round 3: SQL quirks (Prisma only)
+
+After the structural fixes, I dug into the actual SQL Prisma emits character-by-character. Several quirks add up on hot paths:
+
+**Quirk #1: `findUnique` adds `LIMIT $2 OFFSET $3` instead of inline `LIMIT 1`.**
+
+```sql
+-- Prisma findUnique({ where: { id } })
+SELECT * FROM "User" WHERE "id"=$1 AND $4=$5 LIMIT $2 OFFSET $3
+-- TypeORM findOne({ where: { id } })
+SELECT * FROM "User" WHERE "id"=$1 LIMIT 2
+-- Drizzle db.query.users.findFirst({ where: eq(users.id, id) })
+SELECT * FROM "User" WHERE "id"=$1 LIMIT 1
+```
+
+Prisma binds the LIMIT/OFFSET as parameters, which prevents PostgreSQL (PG) from picking the unique-index fast path. **Fix**: use `findFirst` instead of `findUnique` when you don't need uniqueness validation.
+
+**Quirk #2: cursor pagination wraps in a subquery.**
+
+```sql
+-- Prisma cursor: { id: $1 }, skip: 1
+SELECT * FROM "Post"
+WHERE "id" <= (SELECT "id" FROM "Post" WHERE ("id") = ($1))
+ORDER BY "id" DESC LIMIT $2 OFFSET $3
+-- TypeORM where('p.id < :cursor')
+-- Drizzle where: lt(posts.id, cursor)
+SELECT * FROM "Post" WHERE "id" < $1 ORDER BY "id" DESC LIMIT $2
+```
+
+Prisma's `cursor:` API wraps your cursor value in a subquery to convert from "starts at this row" to a comparable predicate. **Fix**: don't use the `cursor:` API. Use `where: { id: { lt: cursor } }` directly.
+
+**Quirk #3: tautologies in `WHERE`.** `AND $4=$5` appears in many Prisma WHERE clauses. The query engine emits these as no-ops to keep the parameter count consistent across optional fields. PG's planner ignores them, but it does parse and plan around them. TypeORM and Drizzle emit none of these.
+
+**Quirk #4: `LIKE` casts to text.**
+
+```sql
+-- Prisma deleteMany({ where: { title: { startsWith: $stamp } } })
+DELETE FROM "Post" WHERE "title"::text LIKE ($2 || $3)
+-- TypeORM/Drizzle equivalent
+DELETE FROM "Post" WHERE "title" LIKE $1
+```
+
+The explicit `::text` cast and string concatenation prevent the planner from using a `text_pattern_ops` index. **Fix**: there isn't one in the public API; either accept it or drop to raw SQL for hot DELETE paths. (This is partly why Prisma's `delete` scenario lands at **798ms p95** vs TypeORM's 90ms — 9x slower.)
+
+## How Drizzle handles each round without a fix
+
+The interesting thing about adding Drizzle to the bench: **it doesn't need any of Prisma's fixes**. Out of the box, Drizzle:
+
+- **Has no `_count` magic.** You either write a separate count query (Round 1's "fix") or you don't get a count. The footgun simply doesn't exist.
+- **Joins are explicit.** `with: { author: true, comments: { with: { author: true } } }` always emits one query. There's no `'query'` vs `'join'` strategy toggle — you opt into JOINs by writing `with`, you opt into N+1 by writing two separate queries. No accidental N+1 from defaults.
+- **Cursor pagination is just `where: lt(posts.id, cursor)`.** Emits `WHERE "id" < $1` — no subquery wrapping, identical to TypeORM:
+
+  ```sql
+  -- Drizzle cursor query (emitted)
+  SELECT "id", "title", "body", "authorId", "createdAt"
+  FROM "Post" WHERE "id" < $1 ORDER BY "id" DESC LIMIT $2
+  ```
+- **Pagination is also flat.** `findMany({ with: { author: true }, orderBy, limit, offset })` emits one `LEFT JOIN LATERAL` (just for `author`):
+
+  ```sql
+  -- Drizzle pagination + author (emitted)
+  SELECT "posts"."id", "posts"."title", ..., "posts_author"."data" AS "author"
+  FROM "Post" "posts"
+  LEFT JOIN LATERAL (
+    SELECT json_build_array("posts_author"."id", "posts_author"."email", ...) AS "data"
+    FROM (SELECT * FROM "User" WHERE "id" = "posts"."authorId" LIMIT 1) "posts_author"
+  ) "posts_author" ON true
+  ORDER BY "posts"."createdAt" DESC LIMIT $2 OFFSET $3
+  ```
+- **No tautologies.** Drizzle's SQL builder concatenates exactly the predicates you write.
+- **No `::text` casts on `LIKE`.** `like(posts.title, pattern)` emits raw `LIKE`.
+
+Net result: most of the "fair Prisma" code in this bench is Prisma trying to catch up to what Drizzle already does by default. **But cleaner SQL doesn't always mean faster** — that's the surprise of the bench. See below.
+
+## Final results
+
+12 scenarios, RUNS=1, all three ORMs running side-by-side with Prisma's fair-ish patches applied (relationLoadStrategy, window-fn n+1, batched count, findFirst, direct cursor):
+
+![p95 latency by scenario — fast](https://quickchart.io/chart?width=900&height=500&c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22simple-lookup%22%2C%22relations%22%2C%22pagination%22%2C%22n%2B1%22%2C%22bulk-insert%22%2C%22deep-nested%22%2C%22cursor%22%2C%22delete%22%2C%22transaction%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Prisma%22%2C%22backgroundColor%22%3A%22%235a67d8%22%2C%22data%22%3A%5B213%2C301%2C331%2C161%2C67%2C129%2C507%2C798%2C188%5D%7D%2C%7B%22label%22%3A%22TypeORM%22%2C%22backgroundColor%22%3A%22%23ed8936%22%2C%22data%22%3A%5B147%2C200%2C608%2C190%2C14%2C113%2C279%2C90%2C127%5D%7D%2C%7B%22label%22%3A%22Drizzle%22%2C%22backgroundColor%22%3A%22%2338a169%22%2C%22data%22%3A%5B224%2C765%2C1331%2C514%2C22%2C1465%2C585%2C102%2C150%5D%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22p95%20latency%20%28ms%29%20-%20fast%20scenarios%22%7D%7D%7D)
+
+![p95 latency — heavy scans](https://quickchart.io/chart?width=900&height=400&c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22fulltext%22%2C%22raw-aggregation%22%2C%22complex-filter%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Prisma%22%2C%22backgroundColor%22%3A%22%235a67d8%22%2C%22data%22%3A%5B8604%2C11086%2C35953%5D%7D%2C%7B%22label%22%3A%22TypeORM%22%2C%22backgroundColor%22%3A%22%23ed8936%22%2C%22data%22%3A%5B8505%2C28738%2C60001%5D%7D%2C%7B%22label%22%3A%22Drizzle%22%2C%22backgroundColor%22%3A%22%2338a169%22%2C%22data%22%3A%5B7815%2C10689%2C53046%5D%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22p95%20latency%20%28ms%29%20-%20heavy%20scans%22%7D%7D%7D)
+
+![Requests per second](https://quickchart.io/chart?width=900&height=500&c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22simple-lookup%22%2C%22relations%22%2C%22pagination%22%2C%22fulltext%22%2C%22n%2B1%22%2C%22bulk-insert%22%2C%22deep-nested%22%2C%22raw-aggregation%22%2C%22cursor%22%2C%22complex-filter%22%2C%22delete%22%2C%22transaction%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Prisma%22%2C%22backgroundColor%22%3A%22%235a67d8%22%2C%22data%22%3A%5B2205%2C1300%2C1337%2C11%2C591%2C209%2C1375%2C17%2C943%2C4%2C107%2C422%5D%7D%2C%7B%22label%22%3A%22TypeORM%22%2C%22backgroundColor%22%3A%22%23ed8936%22%2C%22data%22%3A%5B3091%2C2323%2C733%2C12%2C462%2C835%2C1589%2C5%2C1701%2C1%2C666%2C645%5D%7D%2C%7B%22label%22%3A%22Drizzle%22%2C%22backgroundColor%22%3A%22%2338a169%22%2C%22data%22%3A%5B2113%2C657%2C367%2C12%2C230%2C621%2C129%2C15%2C803%2C2%2C857%2C555%5D%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Requests%20per%20second%20%28higher%20%3D%20better%29%22%7D%7D%7D)
+
+![Peak RSS memory](https://quickchart.io/chart?width=900&height=500&c=%7B%22type%22%3A%22bar%22%2C%22data%22%3A%7B%22labels%22%3A%5B%22simple-lookup%22%2C%22relations%22%2C%22pagination%22%2C%22fulltext%22%2C%22n%2B1%22%2C%22bulk-insert%22%2C%22deep-nested%22%2C%22raw-aggregation%22%2C%22cursor%22%2C%22complex-filter%22%2C%22delete%22%2C%22transaction%22%5D%2C%22datasets%22%3A%5B%7B%22label%22%3A%22Prisma%22%2C%22backgroundColor%22%3A%22%235a67d8%22%2C%22data%22%3A%5B248%2C714%2C961%2C135%2C319%2C244%2C862%2C135%2C365%2C127%2C232%2C301%5D%7D%2C%7B%22label%22%3A%22TypeORM%22%2C%22backgroundColor%22%3A%22%23ed8936%22%2C%22data%22%3A%5B241%2C348%2C345%2C107%2C214%2C228%2C323%2C106%2C350%2C105%2C212%2C229%5D%7D%2C%7B%22label%22%3A%22Drizzle%22%2C%22backgroundColor%22%3A%22%2338a169%22%2C%22data%22%3A%5B214%2C510%2C375%2C99%2C266%2C206%2C372%2C102%2C331%2C103%2C203%2C220%5D%7D%5D%7D%2C%22options%22%3A%7B%22title%22%3A%7B%22display%22%3Atrue%2C%22text%22%3A%22Peak%20RSS%20memory%20%28MB%29%20-%20lower%20%3D%20better%22%7D%7D%7D)
+
+| Scenario | Prisma p95 | TypeORM p95 | Drizzle p95 | Prisma RSS | TypeORM RSS | Drizzle RSS | p95 winner |
+|---|---:|---:|---:|---:|---:|---:|---|
+| simple-lookup | 213ms | **147ms** | 224ms | 248 MB | 241 MB | 214 MB | TypeORM |
+| relations | 301ms | **200ms** | 765ms | 714 MB | 348 MB | 510 MB | TypeORM |
+| pagination | **331ms** | 608ms | 1331ms | 961 MB | 345 MB | 375 MB | **Prisma** |
+| fulltext | 8604ms | 8505ms | 7815ms | 135 MB | 107 MB | 99 MB | tie (within 10%) |
+| n+1 | **161ms** | 190ms | 514ms | 319 MB | 214 MB | 266 MB | **Prisma** |
+| bulk-insert | 67ms | **14ms** | 22ms | 244 MB | 228 MB | 206 MB | TypeORM |
+| deep-nested | 129ms | **113ms** | 1465ms | 862 MB | 323 MB | 372 MB | TypeORM |
+| raw-aggregation | 11086ms | 28738ms | **10689ms** | 135 MB | 106 MB | 102 MB | Drizzle |
+| cursor | 507ms | **279ms** | 585ms | 365 MB | 350 MB | 331 MB | TypeORM |
+| complex-filter | **35953ms** | 60001ms | 53046ms | 127 MB | 105 MB | 103 MB | **Prisma** |
+| delete | 798ms | **90ms** | 102ms | 232 MB | 212 MB | 203 MB | TypeORM |
+| transaction | 188ms | **127ms** | 150ms | 301 MB | 229 MB | 220 MB | TypeORM |
+
+**Score: TypeORM 7, Prisma 2 outright + 1 least-worst, Drizzle 2, fulltext tied.** Memory: Drizzle is lowest in **8 of 12** scenarios; TypeORM wins memory on the JOIN-heavy ones (relations, pagination, deep-nested, n+1).
+
+## Why Drizzle's relational API is slower than expected
+
+This was the bench's biggest surprise. Drizzle's relational query API emits structurally beautiful SQL — exactly the kind that gets praised in marketing posts:
+
+```sql
+-- Drizzle's emitted SQL for /posts/:id/full (relations scenario)
+SELECT
+  "posts"."id", "posts"."title", "posts"."body", "posts"."authorId", "posts"."createdAt",
+  "posts_author"."data" AS "author",
+  "posts_comments"."data" AS "comments",
+  "posts_postCategories"."data" AS "postCategories"
+FROM "Post" "posts"
+LEFT JOIN LATERAL (
+  SELECT json_build_array("posts_author"."id", "posts_author"."email", ...) AS "data"
+  FROM (SELECT * FROM "User" "posts_author" WHERE "posts_author"."id" = "posts"."authorId" LIMIT 1) "posts_author"
+) "posts_author" ON true
+LEFT JOIN LATERAL (
+  SELECT COALESCE(json_agg(json_build_array("posts_comments"."id", "posts_comments"."body", ..., "posts_comments_author"."data")), '[]'::json) AS "data"
+  FROM (SELECT * FROM "Comment" "posts_comments" WHERE "posts_comments"."postId" = "posts"."id" ORDER BY "posts_comments"."createdAt" DESC LIMIT 20) "posts_comments"
+  LEFT JOIN LATERAL (...) ON true
+) "posts_comments" ON true
+LEFT JOIN LATERAL (...)
+WHERE "posts"."id" = $1
+```
+
+One query, no cartesian explosion (the nested data is built as JSON in PG, not duplicated across rows), nested structures handed straight to the client. This is exactly what you'd write if you were optimizing by hand.
+
+So why is **deep-nested 1465ms p95** for Drizzle vs **113ms** for TypeORM — a **13x gap**?
+
+1. **PG's `json_agg` + `json_build_array` are not free.** Every row goes through a JSON encoder. At the per-query mean of ~3ms each looks fine, but at 500 VUs hitting in parallel, PG spends a lot of CPU formatting JSON. TypeORM's flat result set lets PG skip formatting — it just streams binary rows.
+2. **Subquery materialization.** Each `LEFT JOIN LATERAL (SELECT ... LIMIT n)` materializes a temporary set per parent row. PG's planner is good but not free; with 4 nested LATERALs (deep-nested has 3 levels of `with: { ... with: { ... with: ... } }`) you're paying for 4 subquery scaffolds per row.
+3. **`pg_stat_statements` confirms it.** The deep-nested query mean execution time is ~3ms per call — but the per-row work scales with the depth and the JSON size, and at 500 VUs concurrent it queues against the connection pool harder than a flat JOIN does.
+
+**Take-away**: "structurally elegant SQL" isn't always "fast SQL." TypeORM's `leftJoinAndSelect` does the right thing for the wrong reason — it produces a denormalized, ugly cartesian, but PG's row-streaming is so well-optimized that it wins regardless.
+
+### Drizzle's gap scales with nesting depth
+
+Looking at just the JOIN-shape scenarios, Drizzle's slowdown vs TypeORM grows non-linearly with how deep the `with: { ... }` chain goes:
+
+| Scenario | Nesting | TypeORM p95 | Drizzle p95 | Slowdown |
+|---|---|---:|---:|---:|
+| simple-lookup | flat | 147ms | 224ms | 1.5x |
+| pagination | 1 level (`with: { author }`) | 608ms | 1331ms | 2.2x |
+| relations | 2 levels | 200ms | 765ms | **3.8x** |
+| deep-nested | 3 levels | 113ms | 1465ms | **13x** |
+
+Each `LEFT JOIN LATERAL (SELECT ... LIMIT n)` PG materializes adds work. With 3 levels of `with`, the planner builds 3 nested LATERALs per root row — 60+ subquery scaffolds per single-post lookup. TypeORM's flat `LEFT JOIN` chain avoids the per-row materialization entirely.
+
+**The flip side: Drizzle wins memory in those same scenarios** — JSON-shaped results land in JS as plain objects, no entity-class hydration, no codegen-generated wrappers. Pick your trade-off: latency or RAM.
+
+### How to fix Drizzle's hot paths (without leaving the library)
+
+If you have a hot path that hits `with: { ... with: { ... } }`, drop the relational API for that one query and write it as a query-builder JOIN:
+
+```ts
+// Slow: relational API with nested `with` (LATERAL + json_agg)
+const post = await db.query.posts.findFirst({
+  where: eq(posts.id, id),
+  with: { author: true, comments: { with: { author: true }, limit: 20 } },
+});
+
+// Fast: explicit query-builder JOIN (flat cartesian, app-side dedup)
+const rows = await db
+  .select({
+    post: posts,
+    author: users,
+    comment: comments,
+    commentAuthor: alias(users, 'commentAuthor'),
+  })
+  .from(posts)
+  .leftJoin(users, eq(posts.authorId, users.id))
+  .leftJoin(comments, eq(comments.postId, posts.id))
+  .leftJoin(alias(users, 'commentAuthor'), eq(comments.authorId, /* ... */))
+  .where(eq(posts.id, id));
+// Then dedupe in JS - loses the ergonomic `with` syntax, gains TypeORM-speed
+```
+
+You give up the nested-object response shape (you have to dedupe yourself) and the convenient typed `with` syntax — but you gain TypeORM-equivalent latency. For paths where p95 matters, this is the correct trade.
+
+## Why Prisma uses 2-3x more memory
+
+On JOIN-heavy paths, Prisma's peak RSS hit **714-961 MB** vs TypeORM's **323-348 MB** and Drizzle's **372-510 MB**. Same data, same logical operation. Why?
+
+1. **Generated client size.** Prisma codegens model classes with method overloads for every variation (`findUnique`, `findFirst`, `findMany`, `aggregate`, `groupBy`, etc. × every relation × every type combination). Bundle is ~5-10 megabytes of JavaScript (JS) loaded into the V8 heap. TypeORM has runtime metadata + entity classes — much smaller resident set. Drizzle has no codegen at all — schema is just TS exports. **Smallest constant footprint of the three.**
+
+2. **Query engine layer.** Prisma 7 with `adapter-pg` removed the Rust binary, but the JS query engine that builds an Abstract Syntax Tree (AST) → SQL → executes → re-hydrates is still there. AST objects + intermediate query state are held in heap during every request.
+
+3. **Result hydration.** Prisma converts every row through generated type validators, allocating new objects with prototypes per model. TypeORM uses entity classes that the `pg` driver fills directly. Drizzle returns plain objects (or whatever shape the relational query API builds via SQL `json_agg`) — fewest allocations of the three.
+
+4. **`relationLoadStrategy: 'join'` cartesian buffering.** When you opt into JOIN strategy, the raw cartesian rows arrive (post × categories × comments × commentAuthor = hundreds of duplicate rows per single post lookup), get buffered in JS arrays, then deduplicated into nested structures. Peak heap = full cartesian materialized at once. TypeORM has the same problem (`leftJoinAndSelect`). Drizzle sidesteps it via `LATERAL`+`json_agg` at the SQL level — Postgres builds the nested JSON, JS just receives it.
+
+5. **No streaming.** Prisma's `findMany` always fully materializes the result set into a JS array before resolving the promise. 100k rows × 1 KB each = 100 MB in heap at peak, even if you only iterate once and throw it away. TypeORM offers `qb.stream()` (Node.js Readable, backpressure-aware) and `qb.iterate()` (async iterator), so you can pipe rows from Postgres → HTTP response one at a time and keep memory flat regardless of dataset size. Drizzle exposes the underlying `pg` cursor for streaming. Prisma's only escape hatch is manual chunked pagination (`take`/`skip` loop) or dropping to `pg`'s native `Cursor` via `$queryRawUnsafe`. If you ever need to export a CSV bigger than RAM, this matters a lot.
+
+## Why Prisma is slower (the actual reasons)
+
+Forget the "Rust binary Inter-Process Communication (IPC)" narrative — Prisma 7's adapter-pg path is pure JS now. The slowness comes from the **emitted SQL itself**:
+
+1. **`AND $4=$5` no-op tautologies** — query engine emits these for null/optional handling. PG plans around them.
+2. **Wrapper subqueries** — `WHERE id <= (SELECT id WHERE id=$1)` instead of `WHERE id < $1`. Extra index lookup.
+3. **`LIMIT $2 OFFSET $3` on findUnique** — prevents PG's unique-index fast path.
+4. **`title::text LIKE ($2||$3)`** — explicit cast + concat, kills `text_pattern_ops` index. **This is exactly why `delete` is 9x slower than TypeORM.**
+5. **Multi-query loading by default** — `relationLoadStrategy: 'query'` causes 3 round-trips for one `findUnique` with `include`.
+
+The Rust engine bashing is mostly outdated. The current bottleneck is Prisma's SQL generator emitting safe-but-suboptimal SQL.
+
+## Top 5 Prisma performance killers
+
+1. **`include: { _count }` on hot paths** — generates a full GROUP BY of the related table, every request. Replace with batched count.
+2. **`include` without `relationLoadStrategy: 'join'`** — N+1 round-trips disguised as one ORM call.
+3. **`findUnique` everywhere** — emits `LIMIT $/OFFSET $`. Use `findFirst` unless you need the prisma-side uniqueness check.
+4. **Deep `select` with relations on lists** — cartesian buffering blows up heap. Use a separate query per relation when N is large.
+5. **`cursor: { id }` keyset pagination** — wraps in a subquery. Use `where: { id: { lt: cursor } }` directly.
+
+## TypeORM caveats too
+
+It's not all rosy on the TypeORM side, even though it wins this bench:
+
+1. **`loadRelationCountAndMap` runs a separate query.** Fine for one page, but at high RPS the extra round-trip adds up. Pagination with count is double the wire traffic vs without.
+2. **Pagination emits `SELECT DISTINCT`** when there's a `take` + JOIN. `leftJoinAndSelect` could duplicate root rows from one-to-many joins, so PG has to sort to dedupe. **This is part of why TypeORM's pagination (608ms) is slower than Prisma's (331ms) in the final results.**
+3. **`leftJoinAndSelect` cartesian explosion** — same problem as Prisma's `relationLoadStrategy: 'join'` — wide result sets when fan-outs are large. TypeORM is just faster at deduping client-side. Drizzle's `LATERAL`+`json_agg` avoids the issue entirely (but loses on JSON encoding overhead, see above).
+4. **Raw-aggregation 28.7 seconds p95.** TypeORM's connection pool seemed to saturate under that scenario in a way Prisma's and Drizzle's didn't. I dug into `pg_stat_statements` — the SQL is identical raw text across all three ORMs, so this is a driver/pool effect, not a query-shape effect.
+5. **`createQueryBuilder` is verbose.** Type safety is weaker than Prisma's. Easy to typo a column name and only find out at runtime.
+6. **No connection pool tuning by default.** You set `max` but it doesn't expose `min`, `idleTimeoutMillis`, `connectionTimeoutMillis` cleanly. Have to drop to `extra: {}`.
+7. **TypeORM is in maintenance mode.** Last meaningful release was December 2025. Roadmap is unclear.
+
+## Drizzle caveats too
+
+Drizzle has the cleanest defaults of the three. It still has real warts:
+
+1. **The relational API's `LATERAL`+`json_agg` is slow at high concurrency.** On flat queries (cursor, simple-lookup) it's competitive; on deep-nested it's **13x** behind TypeORM. If you have hot paths with 3+ levels of `with: { ... }`, benchmark them — the elegant SQL has a real cost.
+2. **Pre-1.0 API churn.** `0.x` releases routinely move things around. The relational query API in particular has had several rounds of redesign. Schema migrations between minor versions are a real cost in long-running projects.
+3. **No `.prisma`-style schema DSL.** Schema lives in TS as `pgTable(...)` + `relations(...)` exports. Some teams prefer the single-file Prisma DSL for cross-stack readability.
+4. **No automatic relation count.** You write the count query yourself every time. (Some folks see this as a feature — no `_count` cartesian footgun.)
+5. **No introspection-driven client.** Prisma's `prisma generate` builds a fully-typed client from your schema; if you change a column name, the client signatures shift and the type-checker tells you everywhere it broke. Drizzle relies on you keeping the schema TS file in sync.
+6. **Migrations via `drizzle-kit` are still maturing.** Tooling has gaps (e.g. complex constraint diffing, RLS support). For non-trivial schemas, you still write some migrations by hand.
+7. **Smaller ecosystem.** Fewer Nest.js integrations, fewer "it just works" examples for niche cases (multi-tenant row security, soft deletes, etc.). You'll hit the docs sooner.
+8. **`with: { author: true }` over-fetches all columns of `User`.** If you want a narrow projection, you have to go to the query-builder API (`db.select({...}).from(...)`) — which loses the ergonomic `with` syntax.
+
+## Project health: GitHub at a glance
+
+Numbers as of May 2026:
+
+| Metric | Prisma | TypeORM | Drizzle |
+|---|---:|---:|---:|
+| Stars | 45,872 | 36,464 | 34,150 |
+| Forks | 2,182 | 6,511 | 1,352 |
+| Open issues | 2,431 | 417 | 1,290 |
+| Open pull requests (PRs) | 139 | 106 | **442** |
+| Latest release | 7.8.0 (Apr 22, 2026) | 0.3.28 (Dec 3, 2025) | 0.45.2 (Mar 27, 2026) |
+| Last commit | Apr 29, 2026 | Apr 27, 2026 | May 2, 2026 |
+
+What this tells you about each project's health in 2026:
+
+- **Prisma** ships every 1-2 weeks but has the largest issue backlog (~2.4k open). Funded company (Prisma Inc), active development, breaking changes happen, you have to keep up. Famously slow triage — bugs sit for years.
+- **TypeORM** has had one minor release in 5+ months. The 6,511 fork count vs Prisma's 2,182 tells you something about how often users patch it themselves rather than wait for upstream. Effectively in maintenance mode.
+- **Drizzle** has the highest open-PR count (442). That's not a bad sign — the community contributes code and the maintainers haven't merged everything yet. Roughly monthly release cadence. Pre-1.0, but moving.
+
+The forks-to-stars ratio: TypeORM 18%, Prisma 5%, Drizzle 4%. TypeORM users patch and ship; Prisma and Drizzle users mostly trust upstream (or have no choice).
+
+## The optimization checklist (Prisma without raw SQL)
+
+If you're stuck with Prisma and can't drop to raw queries:
+
+1. ✅ `relationLoadStrategy: 'join'` on every `findUnique`/`findMany` with `include`.
+2. ✅ Replace `_count` with a separate batched count query.
+3. ✅ `findFirst` instead of `findUnique` when you don't need the uniqueness check.
+4. ✅ Direct `where: { id: { lt } }` instead of `cursor:` API.
+5. ✅ `select` whitelist instead of `include` of full objects — cuts payload + heap.
+6. ✅ Composite indexes covering `WHERE` + `ORDER BY`: `@@index([authorId, createdAt(sort: Desc)])`.
+7. ✅ Array form `prisma.$transaction([...])` for independent writes — single round-trip.
+8. ✅ `previewFeatures = ["nativeDistinct", "partialIndexes"]` for less app-side work.
+9. ✅ Connection pool sized to actual concurrency: `?connection_limit=N` in `DATABASE_URL`.
+10. ✅ DataLoader-style batching for repeated `findUnique` calls in a single request.
+11. ✅ Raw SQL via `$queryRawUnsafe` for hot aggregations and window functions. Yes, you give up types, but the ORM was never going to emit `ROW_NUMBER() OVER` for you anyway.
+
+## Verdict
+
+The simple version: **TypeORM is the safest perf bet, Drizzle is the safest memory bet, Prisma needs patches but ships**. The longer version:
+
+Use **Prisma** if:
+- You want the schema-first DSL and the migration tooling.
+- Your team values the (objectively excellent) developer experience and is willing to pay the perf+memory cost.
+- You're shipping a product where the database is rarely the bottleneck (CRUD-heavy admin tools, low-RPS APIs).
+- You can afford to apply the 4-patch checklist without crying.
+
+Use **TypeORM** if:
+- You want the fastest result on JOIN-heavy hot paths in this bench (won 7/12).
+- You need streaming (`qb.stream()`) for large exports — only one of the three with first-class support.
+- You're OK with the verbose `createQueryBuilder` syntax and weaker type-safety.
+- You can live with a project in *de facto* maintenance mode.
+
+Use **Drizzle** if:
+- Memory is your tightest constraint (smallest footprint of the three, wins 8/12 RSS).
+- Your hot paths are flat queries or raw SQL (it ties or wins on simple-lookup, fulltext, raw-aggregation).
+- You want clean SQL emission you can read in `pg_stat_statements` without crying.
+- You're OK accepting that 3+-level `with: { ... }` will be slower than a flat TypeORM JOIN. Benchmark your own deepest path before committing.
+- You're OK with pre-1.0 churn — minor releases occasionally rearrange the API.
+
+> **What about Kysely?** Not benchmarked here — Kysely is a query builder, not an ORM, so dropping it into the same NestJS controllers would be apples-to-oranges (no `with: { ... }`, no entity hydration, you write every JOIN by hand). If you're comfortable doing that, Kysely is likely the fastest option of all four because it skips the ORM layer entirely. But the trade-off (no relation magic, no `findMany({ where, orderBy })` ergonomics) means it's not interchangeable with the three above. A separate post.
+
+The interesting takeaway from this whole exercise isn't which ORM "won" — it's that **the marketing narrative ("Drizzle's elegant SQL is fast", "Prisma's Rust engine is slow", "TypeORM is dying") is mostly wrong**. Prisma's slowness comes from the emitted SQL, not the engine; Drizzle's elegant `LATERAL`+`json_agg` is slower than TypeORM's ugly cartesian under load; TypeORM is in maintenance mode but still wins this bench more than the other two combined.
+
+Memory is the harder problem. There's no flag for that. If you're running on a 256 megabyte serverless function and loading lists with relations, Prisma will trigger Out-Of-Memory (OOM) kills. Drizzle and TypeORM will not. Plan accordingly.

@@ -8,12 +8,12 @@ export interface Post {
 
 export const posts: Post[] = [
   {
-    slug: "prisma-vs-typeorm-deep-dive",
+    slug: "prisma-vs-typeorm-vs-drizzle-deep-dive",
     createdAt: "2026-05-03",
-    tags: ["Prisma", "TypeORM", "PostgreSQL", "Benchmark", "Performance"],
-    title: "Prisma vs TypeORM: a fair benchmark, every caveat, every footgun",
+    tags: ["Prisma", "TypeORM", "Drizzle", "PostgreSQL", "Benchmark", "Performance"],
+    title: "Prisma vs TypeORM vs Drizzle: a fair benchmark, every caveat, every footgun",
     previewText:
-      "I ran 12 scenarios on Railway against both ORMs, dug into pg_stat_statements, fixed the unfair bits, and learned exactly why Prisma is slower and uses 2-3x more memory than TypeORM.",
+      "I ran 12 scenarios on Railway against all three ORMs, dug into pg_stat_statements, fixed the unfair bits, and learned exactly why Prisma is slower, why TypeORM is leaner, and where Drizzle actually beats both.",
   },
   {
     slug: "would-i-choose-deno-over-nodejs",
