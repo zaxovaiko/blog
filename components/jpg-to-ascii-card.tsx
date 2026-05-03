@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { IconBrandGithub, IconPhoto } from "@tabler/icons-react";
+import { IconBrandGithub, IconPhoto, IconWorld } from "@tabler/icons-react";
 import { GlowingEffect } from "./ui/glowing-effect";
 
 const FEATURES = ["TypeScript", "Express", "Sharp", "CIE 1931 luminance", "drag & drop"];
@@ -48,6 +48,15 @@ export const JpgToAsciiCard = () => {
       </div>
 
       <div className="flex gap-5 mt-1 flex-wrap">
+        <Link
+          href="https://jpg-to-ascii.vercel.app/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-200 transition-colors"
+        >
+          <IconWorld size={16} />
+          jpg-to-ascii.vercel.app
+        </Link>
         <Link
           href="https://github.com/zaxoavoki/jpg-to-ascii"
           target="_blank"
