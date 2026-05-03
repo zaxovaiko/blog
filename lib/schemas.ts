@@ -9,7 +9,7 @@ export function generatePersonSchema(): WithContext<Person> {
     "@type": "Person",
     name: AUTHOR_NAME,
     url: SITE_URL,
-    jobTitle: "Senior Fullstack Developer (Mobile & AI)",
+    jobTitle: "Tech Lead (Mobile & AI)",
     knowsAbout: [
       "TypeScript",
       "React Native",

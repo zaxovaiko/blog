@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/back-button";
 import {
   IconBrain,
   IconBrandReactNative,
@@ -200,11 +200,9 @@ export default function AboutPage() {
 
   return (
     <div className="flex flex-col py-6 sm:py-10 w-full">
-      <Link href="/" className="self-center">
-        <Button variant="outline" className="hover:bg-white">
-          <span className="text-sm">Back to home</span>
-        </Button>
-      </Link>
+      <div className="self-center">
+        <BackButton href="/" label="Back to home" />
+      </div>
 
       <section className="flex flex-col pt-8 sm:pt-10">
         <h1 className="text-2xl sm:text-3xl font-bold">Tech I use</h1>
