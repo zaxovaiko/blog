@@ -348,7 +348,17 @@ Before this rerun, I had Drizzle 0.44.7 numbers — and they were noticeably wor
 
 The v1 query engine rewrites how `LATERAL`+`json_agg` is generated and processed. JOIN-heavy paths see 33-54% latency drops. The `complex-filter` scenario is the headline: **96% faster** because v1's filter-object syntax produces a much cleaner EXISTS subquery for the planner.
 
-The one regression: `raw-aggregation` got **90% slower** in v1. Identical raw SQL; the change must be in the driver/cursor layer. Worth a separate investigation — flagged as a v1 RC issue (could be fixed before GA).
+The one apparent regression: `raw-aggregation` is **90% slower in the v1 run** vs the 0.44.7 run. I dug into the source — `0.44.x/node-postgres/session.js` and v1's equivalent both ultimately call `client.query(config, params)` with the same `types: typeConfig` (timestamps as raw strings) and the same query name resolution. The only diffs are tiny: v1 wraps errors in `DrizzleQueryError` via `.catch`, has 2 outer noop tracer spans (vs 1 in 0.44.7), passes explicit `rowMode: undefined`, and skips the `queryWithCache` wrapper in fastPath. None of those explain a 90% slowdown on a 6-20s query.
+
+**The real explanation: it's noise, not a Drizzle regression.** Looking at the same scenario across both runs:
+
+| Run | Prisma | TypeORM | Drizzle |
+|---|---:|---:|---:|
+| 0.44.7 bench | 11086ms | 28738ms | 10689ms |
+| v1 RC bench (later) | 14082ms | 33986ms | 20315ms |
+| Δ | +27% | +18% | +90% |
+
+**All three ORMs got slower** between runs. Same Postgres instance, same Railway tenants, but the v1-RC run happened to coincide with worse cache state / neighbor pressure. raw-aggregation only collects ~1.2k samples at 13 RPS over 100s — p95 has visible run-to-run variance, already flagged as suspect in caveats. Drizzle's larger delta is unlucky framing, not a real change in the library.
 
 If you're on Drizzle 0.44.x in production, the v1 upgrade is worth scheduling once it leaves RC — the JOIN gains are substantial.
 
@@ -405,7 +415,7 @@ v1 RC closes most of the gaps that 0.44.x had, but it's not perfect:
 
 1. **`deep-nested` is still 6.5x slower than TypeORM** (855ms vs 132ms). Three-level `with: { ... with: { ... with: ... } }` chains pay heavy `LATERAL` materialization cost. v1 helps but doesn't fix this. Benchmark your deepest hot path before committing.
 2. **`n+1` is 2.3x slower than TypeORM** when the relational query API is used. The two-query pattern (one for posts, one for comments via window function) lands at 437ms vs TypeORM's 188ms — Drizzle's filter-object SQL has overhead vs TypeORM's flat raw query.
-3. **Raw-aggregation regressed 90% from 0.44.7 to v1 RC.** Identical SQL — must be a driver/cursor layer change. Treat as a v1 RC bug worth filing.
+3. ~~Raw-aggregation regressed 90% from 0.44.7 to v1 RC.~~ Update after source inspection: not a real regression. Both runs showed all three ORMs getting slower on raw-aggregation; system-level noise on the Postgres instance, not a Drizzle change. See the v1 vs 0.44 comparison section.
 4. **Pre-1.0 / RC API churn.** v1 is not GA yet. The relational query API just changed *significantly* between 0.44 and v1 (operators replaced by filter-object syntax, `relations()` replaced by `defineRelations()`). Schema migrations between major versions are a real cost.
 5. **No `.prisma`-style schema DSL.** Schema lives in TS as `pgTable(...)` + `defineRelations(...)`. Some teams prefer the single-file Prisma DSL for cross-stack readability.
 6. **No automatic relation count.** You write the count query yourself every time. (Some folks see this as a feature — no `_count` cartesian footgun.)
@@ -480,3 +490,16 @@ Use **Drizzle** (v1 RC or wait for GA) if:
 The interesting takeaway from this whole exercise isn't which ORM "won" — it's that **the marketing narrative is mostly wrong**. Prisma's slowness comes from the emitted SQL, not the engine. Drizzle 0.44's "elegant SQL" was actually slower than TypeORM's "ugly cartesian"; v1 RC fixes most of that. TypeORM is in maintenance mode but still wins this bench more than the other two on relation-heavy work — except where Drizzle v1 dramatically dethrones it (`complex-filter`, `cursor`, `delete`).
 
 Memory is the harder problem. There's no flag for that. If you're running on a 256 megabyte serverless function and loading lists with relations, Prisma will trigger Out-Of-Memory (OOM) kills. TypeORM and Drizzle will not. Plan accordingly.
+
+## What I'd change for the next iteration
+
+If I rerun this bench (or you fork it and run your own), these tweaks would tighten the numbers:
+
+- **`RUNS=3` or `RUNS=5`**, not `RUNS=1`. Currently the slow scenarios (`fulltext`, `raw-aggregation`, `complex-filter`) only collect ~1.2k samples each — visible run-to-run noise on p95. Five runs averaged would stabilize the tail.
+- **Randomize ORM order per scenario.** Right now it's always Prisma → TypeORM → Drizzle. Postgres' buffer cache is cluster-wide, so the *last* ORM in each scenario gets the warmest cache. `shuf -e prisma typeorm drizzle` per iteration eliminates that bias.
+- **Pre-warm the cache before measuring.** Hit each endpoint 100x in a non-recorded warmup phase, or run `SELECT pg_prewarm('"User"'); SELECT pg_prewarm('"Post"');` before the k6 ramp starts. Equalizes cold-start effects across ORMs.
+- **Longer scenarios.** 100s with a 0→500-VU ramp leaves only ~70s of "steady state" measurement. 300s would dilute warmup bias.
+- **Dedicated Postgres host.** Railway Hobby uses shared CPU, and neighbor tenants spike randomly. Moving to a dedicated instance (Railway Pro or RDS) would eliminate the noise floor visible on `raw-aggregation` here.
+- **Confidence intervals, not just p95.** A 1500ms ± 800ms p95 isn't comparable to a 1500ms ± 50ms one. Reporting the IQR or a bootstrapped CI alongside p95 would let readers tell signal from noise themselves.
+
+If you actually run this and find different numbers, [open a PR or an issue](https://github.com/zaxovaiko/prisma-typeorm-drizzle-benchmark) — I'd rather have the post be wrong and corrected than confidently misleading.
