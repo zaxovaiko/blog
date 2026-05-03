@@ -24,6 +24,8 @@ export const metadata = {
 
 # Prisma vs TypeORM vs Drizzle: a fair benchmark, every caveat, every footgun
 
+> Yes, that's a huge post. You don't have to read it all — the TL;DR is in the final results section. But if you care about the details, the "why" behind the numbers, and the concrete optimizations you can apply today, read on.
+
 Every "Prisma vs X" benchmark online suffers from one of two problems: the author tested the Object-Relational Mappers (ORMs) doing different work (one fetches a count, the other doesn't), or they ran on a laptop that thermal-throttled mid-run. I wanted to know, with everything actually equal: which ORM is faster, by how much, and **why**?
 
 The thing that pushed me to actually run my own bench was [TypeORM vs Prisma — Same Schema, Different Performance Profile](https://blog.gopenai.com/typeorm-vs-prisma-same-schema-different-performance-profile-3c57c3b07219). It's a decent read, but the methodology has the usual problems: ran on a developer laptop, single ORM-vs-ORM scenario per query, no `pg_stat_statements` to verify what SQL was actually emitted, and the conclusions glossed over whether the two ORMs were doing the same logical work. I wanted apples-to-apples — same Postgres, same network, same payload, scenarios run alternately, with the actual emitted SQL verified.
