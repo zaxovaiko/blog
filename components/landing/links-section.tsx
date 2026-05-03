@@ -3,6 +3,7 @@ import {
   IconBrandLinkedin,
   IconMail,
   IconListDetails,
+  IconCode,
 } from "@tabler/icons-react";
 import Link from "next/link";
 
@@ -18,6 +19,7 @@ export const Links = () => {
       href: "https://www.linkedin.com/in/zaxovaiko/",
       text: "Linkedin",
     },
+    { icon: IconCode, href: "/projects", text: "Projects" },
     { icon: IconListDetails, href: "/about", text: "Tech I use" },
     { icon: IconMail, href: "mailto:contact@zaxovaiko.me", text: "Contact me" },
   ];
